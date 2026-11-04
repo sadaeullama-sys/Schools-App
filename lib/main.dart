@@ -12,7 +12,7 @@ void main()=>runApp(const SchoolApp());
 class SchoolApp extends StatelessWidget{const SchoolApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(title:'School Management',debugShowCheckedModeBanner:false,theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:blue),scaffoldBackgroundColor:const Color(0xfff3f6fb)),home:const Home());}
 class Home extends StatefulWidget{const Home({super.key});@override State<Home> createState()=>_HomeState();}
 class _HomeState extends State<Home>{
- String school='New Iqra Children Academy',?logo; int tab=0; String search='';
+ String school='New Iqra Children Academy'; String? logo; int tab=0; String search='';
  List<Map<String,dynamic>> students=[],teachers=[],fees=[],marks=[],attendance=[];
  final picker=ImagePicker(); final searchC=TextEditingController();
  @override void initState(){super.initState();load();}
