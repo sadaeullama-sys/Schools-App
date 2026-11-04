@@ -60,7 +60,51 @@ class _HomePageState extends State<HomePage>{
  const SizedBox(height:12),...['Register Student','Fee Entry','Marks Entry / DMC','Attendance','Student ID Card','Leaving Certificate','Reports'].map((x)=>Card(child:ListTile(leading:const Icon(Icons.chevron_right,color:blue),title:Text(x),trailing:const Icon(Icons.arrow_forward_ios,size:16),onTap:()=>setState(()=>tab=1))))
  ]);
  Widget stat(String label,String value,IconData icon,Color color)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(icon,color:color),const Spacer(),Text(label),Text(value,style:const TextStyle(fontSize:23,fontWeight:FontWeight.bold))]));
- Widget studentList(List<Student> rows)=>ListView(padding:const EdgeInsets.all(12),children:[DropdownButtonFormField<String>(value:'All',decoration:const InputDecoration(labelText:'Select Class',border:OutlineInputBorder()),items:['All','5','6','7','8','9','10'].map((e)=>DropdownMenuItem(value:e,child:Text(e=='All'?'All Classes':'Class $e'))).toList(),onChanged:(v){setState(()=>search.text='');}),const SizedBox(height:10),...rows.map((s)=>Card(child:ListTile(leading:CircleAvatar(backgroundColor:blue,child:Text(s.roll.isEmpty?'?':s.roll)),title:Text(s.name),subtitle:Text('Roll No: ${s.roll}   •   Class: ${s.klass}'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>StudentDetail(student:s,school:school)))) )]);
+ Widget studentList(List<Student> rows) {
+   return ListView(
+     padding: const EdgeInsets.all(12),
+     children: [
+       DropdownButtonFormField<String>(
+         value: 'All',
+         decoration: const InputDecoration(
+           labelText: 'Select Class',
+           border: OutlineInputBorder(),
+         ),
+         items: ['All', '5', '6', '7', '8', '9', '10']
+             .map((e) => DropdownMenuItem<String>(
+                   value: e,
+                   child: Text(e == 'All' ? 'All Classes' : 'Class $e'),
+                 ))
+             .toList(),
+         onChanged: (v) {
+           setState(() {
+             search.text = '';
+           });
+         },
+       ),
+       const SizedBox(height: 10),
+       ...rows.map((s) => Card(
+             child: ListTile(
+               leading: CircleAvatar(
+                 backgroundColor: blue,
+                 child: Text(s.roll.isEmpty ? '?' : s.roll),
+               ),
+               title: Text(s.name),
+               subtitle: Text('Roll No: ${s.roll}  •  Class: ${s.klass}'),
+               trailing: const Icon(Icons.chevron_right),
+               onTap: () {
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(
+                     builder: (_) => StudentDetail(student: s, school: school),
+                   ),
+                 );
+               },
+             ),
+           )),
+     ],
+   );
+ }
  Widget simple(String name,IconData icon)=>Center(child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(icon,size:64,color:blue),Text(name,style:const TextStyle(fontSize:24)),const Text('Module screen starter — add records from Students.')])); 
  Future<void> editSchool()async{final c=TextEditingController(text:school);await showDialog(context:context,builder:(_)=>AlertDialog(title:const Text('School Name'),content:TextField(controller:c),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:()async{setState(()=>school=c.text);final sp=await SharedPreferences.getInstance();await sp.setString('school',school);if(context.mounted)Navigator.pop(context);},child:const Text('Save'))]));}
 }
