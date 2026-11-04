@@ -32,7 +32,6 @@ class _LoginPageState extends State<LoginPage>{
   const Text('Demo login: admin / 1234', style: TextStyle(color: Colors.grey)),
   ]))))));
  }
-}
 class Student {String name,father,roll,klass,phone; Student(this.name,this.father,this.roll,this.klass,this.phone);
  Map<String,dynamic> toJson()=>{'name':name,'father':father,'roll':roll,'klass':klass,'phone':phone};
  factory Student.fromJson(Map<String,dynamic> j)=>Student(j['name']??'',j['father']??'',j['roll']??'',j['klass']??'',j['phone']??'');
