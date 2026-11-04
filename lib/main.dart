@@ -29,10 +29,12 @@ class _LoginPageState extends State<LoginPage>{
   TextField(controller:u,decoration:const InputDecoration(labelText:'Username',prefixIcon:Icon(Icons.person),border:OutlineInputBorder())),
   const SizedBox(height:12),TextField(controller:p,obscureText:true,decoration:const InputDecoration(labelText:'Password',prefixIcon:Icon(Icons.lock),border:OutlineInputBorder())),
   const SizedBox(height:18),SizedBox(width:double.infinity,child:FilledButton(onPressed:(){if(u.text=='admin'&&p.text=='1234'){Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>const HomePage()));}else{ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Demo login: admin / 1234')));}},child:const Text('Login'))),
-  const Text('Demo login: admin / 1234',style:TextStyle(color:Colors.grey))
- ]))))));}
+ const Text(
+  'Demo login: admin / 1234',
+  style: TextStyle(color: Colors.grey),
+)
+]))));}
 }
-
 class Student {String name,father,roll,klass,phone; Student(this.name,this.father,this.roll,this.klass,this.phone);
  Map<String,dynamic> toJson()=>{'name':name,'father':father,'roll':roll,'klass':klass,'phone':phone};
  factory Student.fromJson(Map<String,dynamic> j)=>Student(j['name']??'',j['father']??'',j['roll']??'',j['klass']??'',j['phone']??'');
