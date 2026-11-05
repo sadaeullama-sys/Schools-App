@@ -758,7 +758,7 @@ class FeaturePage extends StatelessWidget {
                               border: TableBorder.all(
                                 color: const Color(0xFFD5E1F0),
                               ),
-                              children: const [
+                              children: [
                                 TableRow(
                                   decoration: BoxDecoration(
                                     color: Color(0xFFEAF2FC),
