@@ -69,8 +69,37 @@ class _HomePageState extends State<HomePage>{
  Widget _stat(String title,String value,IconData icon,Color color)=>Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:color,borderRadius:BorderRadius.circular(16),boxShadow:[BoxShadow(color:color.withOpacity(.18),blurRadius:8,offset:const Offset(0,3))]),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(icon,color:Colors.white,size:25),const SizedBox(height:8),Text(title,style:const TextStyle(color:Colors.white,fontSize:12)),Text(value,style:const TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.bold))]));
  Widget _quick(String t,IconData i,Color c,VoidCallback f)=>SizedBox(width:104,height:90,child:Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:f,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(i,color:c,size:28),const SizedBox(height:7),Text(t,textAlign:TextAlign.center,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w600))]))));
  Widget _students()=>ListView(padding:const EdgeInsets.all(14),children:[TextField(decoration:InputDecoration(hintText:'Search by name or roll no...',prefixIcon:const Icon(Icons.search),filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none)),onChanged:(v)=>setState((){})),const SizedBox(height:10),...students.map((s)=>Card(child:ListTile(leading:_avatar(s),title:Text(s.name,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Roll No. ${s.roll} • Class ${s.clazz}'),trailing:const Icon(Icons.chevron_right),onTap:()=>_profile(s)))),ElevatedButton.icon(onPressed:_addStudent,icon:const Icon(Icons.add),label:const Text('Add Student'))]);
- Widget _fees()=>ListView(padding:const EdgeInsets.all(14),children:[const Text('Student Fee Ledger',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),...students.map((s)=>Card(child:ListTile(leading:_avatar(s),title:Text(s.name),subtitle:Text('Paid Rs. ${s.paid} • Due Rs. ${s.due}'),trailing:IconButton(icon:const Icon(Icons.edit,color:blue),onPressed:()=>_editFee(s))))]);
- Widget _attendance()=>ListView(padding:const EdgeInsets.all(14),children:[const Text('Class 5 • Attendance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),const SizedBox(height:10),...students.map((s)=>Card(child:StatefulBuilder(builder:(context,setLocal)=>CheckboxListTile(value:true,onChanged:(v)=>setLocal((){}),title:Text(s.name),subtitle:Text(s.roll),secondary:_avatar(s)))),ElevatedButton(onPressed:()=>_message('Attendance saved successfully'),child:const Text('Save Attendance'))]);
+ Widget _fees()=>ListView(
+   padding: const EdgeInsets.all(14),
+   children: [
+    const Text('Student Fee Ledger', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),
+    ...students.map((s)=>Card(
+      child: ListTile(
+       leading:_avatar(s),
+       title:Text(s.name),
+       subtitle:Text('Paid Rs. ${s.paid} • Due Rs. ${s.due}'),
+       trailing:IconButton(icon:const Icon(Icons.edit,color:blue),onPressed:()=>_editFee(s)),
+      ),
+    )),
+   ],
+  );
+ Widget _attendance()=>ListView(
+   padding: const EdgeInsets.all(14),
+   children: [
+    const Text('Class 5 • Attendance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),
+    const SizedBox(height:10),
+    ...students.map((s)=>Card(
+      child: CheckboxListTile(
+       value:true,
+       onChanged:(v)=>setState((){}),
+       title:Text(s.name),
+       subtitle:Text(s.roll),
+       secondary:_avatar(s),
+      ),
+    )),
+    ElevatedButton(onPressed:()=>_message('Attendance saved successfully'),child:const Text('Save Attendance')),
+   ],
+  );
  Widget _reports()=>ListView(padding:const EdgeInsets.all(14),children:[_report('Student List (PDF/Excel)',Icons.people),_report('Fee Report (PDF/Excel)',Icons.payments),_report('Attendance Report',Icons.fact_check),_report('DMC / Result Report',Icons.school),_report('Leaving Students Report',Icons.exit_to_app),_report('ID Cards (Bulk)',Icons.badge)]);
  Widget _report(String s,IconData i)=>Card(child:ListTile(leading:Icon(i,color:blue),title:Text(s),trailing:const Icon(Icons.chevron_right),onTap:()=>_message('Report export will be configured in next step.')));
  Widget _avatar(Student s)=>CircleAvatar(backgroundColor:const Color(0xFFDCEBFC),child:Text(s.name.split(' ').map((e)=>e[0]).take(2).join(),style:const TextStyle(color:navy,fontWeight:FontWeight.bold)));
