@@ -1,4 +1,4 @@
-name: Build School Management APK
+name: Build New Iqra Academy APK
 on:
   workflow_dispatch:
   push:
@@ -16,10 +16,10 @@ jobs:
         with:
           flutter-version: '3.24.5'
           channel: stable
-      - run: flutter create --project-name new_iqra_children_academy --platforms=android .
+      - run: flutter create --project-name new_iqra_academy --platforms=android .
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: new-iqra-school-apk
+          name: new-iqra-academy-apk
           path: build/app/outputs/flutter-apk/app-release.apk
