@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(const IqraApp());
@@ -142,8 +145,11 @@ class Student {
   String roll;
   String klass;
   String phone;
+  String dateOfBirth;
+  String? imagePath;
 
-  Student(this.name, this.father, this.roll, this.klass, this.phone);
+  Student(this.name, this.father, this.roll, this.klass, this.phone,
+      {this.dateOfBirth = '', this.imagePath});
 }
 
 class HomePage extends StatefulWidget {
@@ -166,17 +172,44 @@ class _HomePageState extends State<HomePage> {
     final f = TextEditingController();
     final r = TextEditingController();
     final p = TextEditingController();
+    final dob = TextEditingController();
     String c = '5';
+    String? pickedImagePath;
+    final picker = ImagePicker();
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Register Student'),
+          
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                InkWell(
+                  onTap: () async {
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 80,
+                    );
+                    if (image != null) {
+                      setDialogState(() => pickedImagePath = image.path);
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 42,
+                    backgroundColor: const Color(0xFFE7F1FF),
+                    backgroundImage: pickedImagePath == null
+                        ? null
+                        : FileImage(File(pickedImagePath!)),
+                    child: pickedImagePath == null
+                        ? const Icon(Icons.add_a_photo, size: 32, color: navy)
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('Tap photo to upload from Gallery'),
                 TextField(
                   controller: n,
                   decoration: const InputDecoration(labelText: 'Student Name'),
@@ -188,6 +221,28 @@ class _HomePageState extends State<HomePage> {
                 TextField(
                   controller: r,
                   decoration: const InputDecoration(labelText: 'Roll Number'),
+                ),
+                TextField(
+                  controller: dob,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Date of Birth',
+                    prefixIcon: Icon(Icons.calendar_month),
+                  ),
+                  onTap: () async {
+                    final selected = await showDatePicker(
+                      context: dialogContext,
+                      initialDate: DateTime(2015),
+                      firstDate: DateTime(1990),
+                      lastDate: DateTime.now(),
+                    );
+                    if (selected != null) {
+                      dob.text =
+                          '${selected.day.toString().padLeft(2, '0')}/'
+                          '${selected.month.toString().padLeft(2, '0')}/'
+                          '${selected.year}';
+                    }
+                  },
                 ),
                 DropdownButtonFormField<String>(
                   value: c,
@@ -230,6 +285,8 @@ class _HomePageState extends State<HomePage> {
                     r.text.trim(),
                     c,
                     p.text.trim(),
+                    dateOfBirth: dob.text.trim(),
+                    imagePath: pickedImagePath,
                   ));
                 });
                 Navigator.pop(dialogContext);
@@ -514,9 +571,15 @@ class StudentProfile extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               child: Column(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 42,
-                    child: Icon(Icons.person, size: 45),
+                    backgroundColor: const Color(0xFFE7F1FF),
+                    backgroundImage: student.imagePath == null
+                        ? null
+                        : FileImage(File(student.imagePath!)),
+                    child: student.imagePath == null
+                        ? const Icon(Icons.person, size: 45)
+                        : null,
                   ),
                   Text(
                     student.name,
@@ -529,6 +592,7 @@ class StudentProfile extends StatelessWidget {
                   const Divider(),
                   detail('Father Name', student.father),
                   detail('Contact No.', student.phone),
+                  detail('Date of Birth', student.dateOfBirth),
                   detail('Status', 'Active'),
                 ],
               ),
@@ -681,11 +745,18 @@ class FeaturePage extends StatelessWidget {
                                 color: const Color(0xFFE7F1FF),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(
-                                Icons.person,
-                                size: 64,
-                                color: blue,
-                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: s.imagePath == null
+                                  ? const Icon(Icons.person, size: 64, color: blue)
+                                  : Image.file(
+                                      File(s.imagePath!),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.person,
+                                        size: 64,
+                                        color: blue,
+                                      ),
+                                    ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -704,6 +775,7 @@ class FeaturePage extends StatelessWidget {
                                   _line('Roll No.', s.roll),
                                   _line('Class', s.klass),
                                   _line('Father Name', s.father),
+                                  _line('Date of Birth', s.dateOfBirth),
                                   if (isFee) _line('Phone', s.phone),
                                 ],
                               ),
