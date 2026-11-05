@@ -1,12 +1,169 @@
+  import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'New Iqra Children Academy',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1769AA)),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF4F7FB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF12345A),
+          foregroundColor: Colors.white,
+        ),
+      ),
+      home: const SchoolHome(),
+    );
+  }
+}
+
+class SchoolHome extends StatefulWidget {
+  const SchoolHome({super.key});
+
+  @override
+  State<SchoolHome> createState() => _SchoolHomeState();
+}
+
+class _SchoolHomeState extends State<SchoolHome> {
+  static const Color navy = Color(0xFF12345A);
+  static const Color blue = Color(0xFF1769AA);
+
+  List<Map<String, dynamic>> students = [];
+  List<Map<String, dynamic>> marks = [];
+
+  int tab = 0;
+  String search = '';
+  String school = 'New Iqra Children Academy';
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  String val(Map<String, dynamic> data, String key) {
+    return '${data[key] ?? ''}';
+  }
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final studentData = prefs.getString('students') ?? '[]';
+    final marksData = prefs.getString('marks') ?? '[]';
+
+    final loadedStudents =
+        (jsonDecode(studentData) as List).map((e) {
+      return Map<String, dynamic>.from(e);
+    }).toList();
+
+    final loadedMarks =
+        (jsonDecode(marksData) as List).map((e) {
+      return Map<String, dynamic>.from(e);
+    }).toList();
+
+    if (!mounted) return;
+
+    setState(() {
+      students = loadedStudents;
+      marks = loadedMarks;
+      school = prefs.getString('schoolName') ??
+          'New Iqra Children Academy';
+    });
+  }
+
+  Future<void> save() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('students', jsonEncode(students));
+    await prefs.setString('marks', jsonEncode(marks));
+    await prefs.setString('schoolName', school);
+  }
+
+  Future<String?> imagePick() async {
+    final picker = ImagePicker();
+
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    return image?.path;
+  }
+
+  Future<void> settings() async {
+    final controller = TextEditingController(text: school);
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('School Settings'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'School Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (controller.text.trim().isEmpty) return;
+
+              setState(() {
+                school = controller.text.trim();
+              });
+
+              await save();
+
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------- STUDENT REGISTRATION ----------
-  Future<void> studentForm({Map<String, dynamic>? oldStudent}) async {
-    final nameC = TextEditingController(text: val(oldStudent ?? {}, 'name'));
-    final fatherC = TextEditingController(text: val(oldStudent ?? {}, 'father'));
-    final rollC = TextEditingController(text: val(oldStudent ?? {}, 'roll'));
-    final classC = TextEditingController(text: val(oldStudent ?? {}, 'class'));
-    final phoneC = TextEditingController(text: val(oldStudent ?? {}, 'phone'));
-    final dobC = TextEditingController(text: val(oldStudent ?? {}, 'dob'));
-    final addressC = TextEditingController(text: val(oldStudent ?? {}, 'address'));
+  Future<void> studentForm({
+    Map<String, dynamic>? oldStudent,
+  }) async {
+    final nameC =
+        TextEditingController(text: val(oldStudent ?? {}, 'name'));
+    final fatherC =
+        TextEditingController(text: val(oldStudent ?? {}, 'father'));
+    final rollC =
+        TextEditingController(text: val(oldStudent ?? {}, 'roll'));
+    final classC =
+        TextEditingController(text: val(oldStudent ?? {}, 'class'));
+    final phoneC =
+        TextEditingController(text: val(oldStudent ?? {}, 'phone'));
+    final dobC =
+        TextEditingController(text: val(oldStudent ?? {}, 'dob'));
+    final addressC =
+        TextEditingController(text: val(oldStudent ?? {}, 'address'));
 
     String? photo = val(oldStudent ?? {}, 'photo').isEmpty
         ? null
@@ -16,7 +173,11 @@
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
-          title: Text(oldStudent == null ? 'Student Registration' : 'Edit Student'),
+          title: Text(
+            oldStudent == null
+                ? 'Student Registration'
+                : 'Edit Student',
+          ),
           content: SizedBox(
             width: 450,
             child: SingleChildScrollView(
@@ -32,9 +193,10 @@
                     child: CircleAvatar(
                       radius: 48,
                       backgroundColor: Colors.blue.shade100,
-                      backgroundImage: photo != null && File(photo!).existsSync()
-                          ? FileImage(File(photo!))
-                          : null,
+                      backgroundImage:
+                          photo != null && File(photo!).existsSync()
+                              ? FileImage(File(photo!))
+                              : null,
                       child: photo == null
                           ? const Icon(Icons.add_a_photo, size: 30)
                           : null,
@@ -67,7 +229,9 @@
 
                 final record = <String, dynamic>{
                   'id': val(oldStudent ?? {}, 'id').isEmpty
-                      ? DateTime.now().millisecondsSinceEpoch.toString()
+                      ? DateTime.now()
+                          .millisecondsSinceEpoch
+                          .toString()
                       : val(oldStudent ?? {}, 'id'),
                   'name': nameC.text.trim(),
                   'father': fatherC.text.trim(),
@@ -84,7 +248,8 @@
                     students.add(record);
                   } else {
                     final index = students.indexWhere(
-                      (s) => val(s, 'id') == val(oldStudent, 'id'),
+                      (s) =>
+                          val(s, 'id') == val(oldStudent, 'id'),
                     );
                     if (index >= 0) students[index] = record;
                   }
@@ -104,7 +269,10 @@
     );
   }
 
-  Widget field(TextEditingController controller, String label) {
+  Widget field(
+    TextEditingController controller,
+    String label,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
@@ -118,13 +286,19 @@
   }
 
   // ---------- DMC PAPERS ----------
-  List<Map<String, dynamic>> papersFor(Map<String, dynamic> student) {
+  List<Map<String, dynamic>> papersFor(
+    Map<String, dynamic> student,
+  ) {
     return marks
-        .where((m) => val(m, 'studentId') == val(student, 'id'))
+        .where(
+          (m) => val(m, 'studentId') == val(student, 'id'),
+        )
         .toList();
   }
 
-  Future<void> addPaper(Map<String, dynamic> student) async {
+  Future<void> addPaper(
+    Map<String, dynamic> student,
+  ) async {
     final subjectC = TextEditingController();
     final totalC = TextEditingController(text: '100');
     final obtainedC = TextEditingController(text: '0');
@@ -155,7 +329,8 @@
                   'studentId': val(student, 'id'),
                   'subject': subjectC.text.trim(),
                   'total': double.tryParse(totalC.text) ?? 100,
-                  'obtained': double.tryParse(obtainedC.text) ?? 0,
+                  'obtained':
+                      double.tryParse(obtainedC.text) ?? 0,
                 });
               });
 
@@ -172,8 +347,11 @@
     );
   }
 
-  Future<void> editPaper(Map<String, dynamic> paper) async {
-    final totalC = TextEditingController(text: '${paper['total']}');
+  Future<void> editPaper(
+    Map<String, dynamic> paper,
+  ) async {
+    final totalC =
+        TextEditingController(text: '${paper['total']}');
     final obtainedC =
         TextEditingController(text: '${paper['obtained']}');
 
@@ -196,7 +374,8 @@
           FilledButton(
             onPressed: () async {
               setState(() {
-                paper['total'] = double.tryParse(totalC.text) ?? 100;
+                paper['total'] =
+                    double.tryParse(totalC.text) ?? 100;
                 paper['obtained'] =
                     double.tryParse(obtainedC.text) ?? 0;
               });
@@ -214,13 +393,17 @@
     );
   }
 
-  Future<void> removePaper(Map<String, dynamic> paper) async {
+  Future<void> removePaper(
+    Map<String, dynamic> paper,
+  ) async {
     setState(() => marks.remove(paper));
     await save();
   }
 
   // ---------- STUDENT PHOTO ----------
-  Widget studentPhoto(Map<String, dynamic> student) {
+  Widget studentPhoto(
+    Map<String, dynamic> student,
+  ) {
     final path = val(student, 'photo');
 
     return CircleAvatar(
@@ -251,7 +434,8 @@
         Padding(
           padding: const EdgeInsets.all(12),
           child: TextField(
-            onChanged: (value) => setState(() => search = value),
+            onChanged: (value) =>
+                setState(() => search = value),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               hintText: 'Search student / roll / father name',
@@ -276,7 +460,9 @@
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (value == 'edit') {
-                        await studentForm(oldStudent: student);
+                        await studentForm(
+                          oldStudent: student,
+                        );
                       } else if (value == 'delete') {
                         setState(() {
                           students.remove(student);
@@ -288,7 +474,10 @@
                         });
                         await save();
                       } else if (value == 'id') {
-                        await makePdf('STUDENT ID CARD', student);
+                        await makePdf(
+                          'STUDENT ID CARD',
+                          student,
+                        );
                       } else if (value == 'dmc') {
                         await makePdf(
                           'DETAILED MARKS CERTIFICATE',
@@ -296,15 +485,39 @@
                           dmc: true,
                         );
                       } else if (value == 'fee') {
-                        await makePdf('STUDENT FEE CARD', student);
+                        await makePdf(
+                          'STUDENT FEE CARD',
+                          student,
+                        );
+                      } else if (value == 'papers') {
+                        await showPapers(student);
                       }
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Edit Student')),
-                      PopupMenuItem(value: 'id', child: Text('ID Card / PDF')),
-                      PopupMenuItem(value: 'dmc', child: Text('DMC / Result PDF')),
-                      PopupMenuItem(value: 'fee', child: Text('Fee Card / PDF')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete Student')),
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Edit Student'),
+                      ),
+                      PopupMenuItem(
+                        value: 'papers',
+                        child: Text('Manage DMC Papers'),
+                      ),
+                      PopupMenuItem(
+                        value: 'id',
+                        child: Text('ID Card / PDF'),
+                      ),
+                      PopupMenuItem(
+                        value: 'dmc',
+                        child: Text('DMC / Result PDF'),
+                      ),
+                      PopupMenuItem(
+                        value: 'fee',
+                        child: Text('Fee Card / PDF'),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete Student'),
+                      ),
                     ],
                   ),
                 ),
@@ -324,6 +537,81 @@
     );
   }
 
+  Future<void> showPapers(
+    Map<String, dynamic> student,
+  ) async {
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final papers = papersFor(student);
+
+          return AlertDialog(
+            title: Text(
+              'DMC Papers - ${val(student, 'name')}',
+            ),
+            content: SizedBox(
+              width: 450,
+              child: papers.isEmpty
+                  ? const Text('No papers added yet.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: papers.length,
+                      itemBuilder: (context, index) {
+                        final paper = papers[index];
+
+                        return ListTile(
+                          title: Text(
+                            val(paper, 'subject'),
+                          ),
+                          subtitle: Text(
+                            'Total: ${paper['total']}  '
+                            'Obtained: ${paper['obtained']}',
+                          ),
+                          trailing: Wrap(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () async {
+                                  await editPaper(paper);
+                                  setDialog(() {});
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () async {
+                                  await removePaper(paper);
+                                  setDialog(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Close'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await addPaper(student);
+                  setDialog(() {});
+                },
+                child: const Text('Add Paper'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   // ---------- PDF / PRINT ----------
   Future<void> makePdf(
     String title,
@@ -335,12 +623,14 @@
 
     final total = papers.fold<double>(
       0,
-      (sum, p) => sum + (double.tryParse('${p['total']}') ?? 0),
+      (sum, p) =>
+          sum + (double.tryParse('${p['total']}') ?? 0),
     );
 
     final obtained = papers.fold<double>(
       0,
-      (sum, p) => sum + (double.tryParse('${p['obtained']}') ?? 0),
+      (sum, p) =>
+          sum + (double.tryParse('${p['obtained']}') ?? 0),
     );
 
     doc.addPage(
@@ -356,159 +646,12 @@
               ),
             ),
             pw.SizedBox(height: 10),
-            pw.Text(title, style: const pw.TextStyle(fontSize: 18)),
+            pw.Text(
+              title,
+              style: const pw.TextStyle(fontSize: 18),
+            ),
             pw.Divider(),
             pw.Text('Student: ${val(student, 'name')}'),
             pw.Text('Father: ${val(student, 'father')}'),
             pw.Text('Roll No: ${val(student, 'roll')}'),
-            pw.Text('Class: ${val(student, 'class')}'),
-            if (dmc) ...[
-              pw.SizedBox(height: 15),
-              pw.Table.fromTextArray(
-                headers: ['Paper', 'Total', 'Obtained', '%'],
-                data: [
-                  ...papers.map((p) {
-                    final t = double.tryParse('${p['total']}') ?? 0;
-                    final o = double.tryParse('${p['obtained']}') ?? 0;
-
-                    return [
-                      val(p, 'subject'),
-                      '$t',
-                      '$o',
-                      t == 0 ? '0%' : '${(o / t * 100).toStringAsFixed(1)}%',
-                    ];
-                  }),
-                  [
-                    'TOTAL',
-                    '$total',
-                    '$obtained',
-                    total == 0
-                        ? '0%'
-                        : '${(obtained / total * 100).toStringAsFixed(1)}%',
-                  ],
-                ],
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                'Result: ${total > 0 && obtained / total >= 0.40 ? 'PASS' : 'NEEDS REVIEW'}',
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-    );
-  }
-
-  // ---------- DASHBOARD ----------
-  Widget dashboard() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: navy,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.school, color: Colors.white, size: 40),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  school,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.people, color: blue),
-            title: const Text('Total Students'),
-            trailing: Text(
-              '${students.length}',
-              style: const TextStyle(fontSize: 24),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: () => studentForm(),
-          icon: const Icon(Icons.person_add),
-          label: const Text('Register Student'),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pageTitles = [
-      'Dashboard',
-      'Students',
-      'Fees',
-      'Attendance',
-      'Reports',
-    ];
-
-    final pages = [
-      dashboard(),
-      studentsPage(),
-      const Center(child: Text('Fees section')),
-      const Center(child: Text('Attendance section')),
-      const Center(child: Text('Reports section')),
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(pageTitles[tab]),
-        actions: [
-          IconButton(
-            onPressed: settings,
-            icon: const Icon(Icons.settings),
-          ),
-        ],
-      ),
-      body: pages[tab],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (value) {
-          setState(() => tab = value);
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people),
-            label: 'Students',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.payments),
-            label: 'Fees',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fact_check),
-            label: 'Attendance',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics),
-            label: 'Reports',
-          ),
-        ],
-      ),
-    );
-  }
-}
+            pw.Text('Class:
