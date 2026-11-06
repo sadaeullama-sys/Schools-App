@@ -37,7 +37,9 @@ class SchoolHome extends StatefulWidget {
   const SchoolHome({super.key});
 
   @override
-  State<SchoolHome> createState() => _SchoolHomeState();
+  State<SchoolHome> createState() {
+    return _SchoolHomeState();
+  }
 }
 
 class _SchoolHomeState extends State<SchoolHome> {
