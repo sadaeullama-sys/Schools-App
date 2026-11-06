@@ -654,4 +654,4 @@ class _SchoolHomeState extends State<SchoolHome> {
             pw.Text('Student: ${val(student, 'name')}'),
             pw.Text('Father: ${val(student, 'father')}'),
             pw.Text('Roll No: ${val(student, 'roll')}'),
-            pw.Text('Class:
+            pw.Text('Class: ${val(student, 'class')}'),
