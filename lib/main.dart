@@ -722,3 +722,159 @@ class _SchoolHomeState extends State<SchoolHome> {
       },
     );
   }
+  // DASHBOARD
+
+  Widget dashboard() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Welcome to $school',
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: navy,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.3,
+          children: [
+            dashboardCard(
+              'Total Students',
+              '${students.length}',
+              Icons.people,
+              Colors.blue,
+            ),
+            dashboardCard(
+              'DMC Papers',
+              '${marks.length}',
+              Icons.menu_book,
+              Colors.green,
+            ),
+            dashboardCard(
+              'School',
+              'Settings',
+              Icons.school,
+              Colors.orange,
+            ),
+            dashboardCard(
+              'Reports',
+              'PDF / Print',
+              Icons.picture_as_pdf,
+              Colors.purple,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: () => setState(() => tab = 1),
+          icon: const Icon(Icons.person_add),
+          label: const Text('Register New Student'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: settings,
+          icon: const Icon(Icons.settings),
+          label: const Text('Change School Name'),
+        ),
+      ],
+    );
+  }
+
+  Widget dashboardCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // MAIN BUILD
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      dashboard(),
+      studentsPage(),
+      const Center(
+        child: Text('Attendance module is not added yet.'),
+      ),
+      const Center(
+        child: Text('Fees module is not added yet.'),
+      ),
+      const Center(
+        child: Text('Reports module is not added yet.'),
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(school),
+        actions: [
+          IconButton(
+            onPressed: settings,
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
+      body: pages[tab],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (index) {
+          setState(() => tab = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people),
+            label: 'Students',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.fact_check),
+            label: 'Attendance',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.payments),
+            label: 'Fees',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assessment),
+            label: 'Reports',
+          ),
+        ],
+      ),
+    );
+  }
+}
