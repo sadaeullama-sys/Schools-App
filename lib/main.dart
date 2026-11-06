@@ -1,115 +1,1939 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 
-void main() => runApp(const IqraApp());
-
-const navy = Color(0xFF073B78);
-const blue = Color(0xFF0878E8);
-const pale = Color(0xFFF1F6FD);
-
-class Student {
-  Student(this.name,this.father,this.roll,this.clazz,this.phone,this.dob);
-  String name, father, roll, clazz, phone, dob;
-  int paid = 9000;
-  int due = 2500;
-  final Map<String,int> marks = {'Urdu':85,'English':78,'Mathematics':92,'Islamiat':88,'Science':80};
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const AcademyApp());
 }
-final students = <Student>[
-  Student('Ahmed Raza','Muhammad Asif','A5','5','0315-9649864','12-03-2014'),
-  Student('Ali Khan','Muhammad Khan','A1','5','0300-1112233','05-08-2014'),
-  Student('Bilal Ahmad','Saeed Ahmad','A2','5','0301-2223344','18-09-2014'),
-  Student('Hamza Gul','Gul Rahman','A3','5','0302-3334455','21-01-2014'),
-  Student('Imran Khan','Naseer Khan','A4','5','0303-4445566','09-11-2014'),
-  Student('Usman Ali','Shah Ali','A6','5','0304-5556677','17-07-2014'),
-];
 
-class IqraApp extends StatelessWidget {
-  const IqraApp({super.key});
+class AcademyApp extends StatelessWidget {
+  const AcademyApp({super.key});
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-    debugShowCheckedModeBanner:false, title:'New Iqra Children Academy',
-    theme: ThemeData(useMaterial3:true, colorScheme:ColorScheme.fromSeed(seedColor:blue), scaffoldBackgroundColor:pale, appBarTheme:const AppBarTheme(backgroundColor:navy,foregroundColor:Colors.white)),
-    home: const LoginPage(),
+    title: 'New Iqra Children Academy',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF0756B5),
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF3F6FC),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF073B70),
+        foregroundColor: Colors.white,
+      ),
+    ),
+    home: const AcademyHome(),
   );
 }
-class LoginPage extends StatefulWidget { const LoginPage({super.key}); @override State<LoginPage> createState()=>_LoginPageState(); }
-class _LoginPageState extends State<LoginPage>{
- final u=TextEditingController(text:'admin'), p=TextEditingController(text:'1234');
- @override Widget build(BuildContext context)=>Scaffold(body:Container(decoration:const BoxDecoration(gradient:LinearGradient(colors:[Color(0xFF052C60),Color(0xFF0878E8)],begin:Alignment.topCenter,end:Alignment.bottomCenter)),child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(children:[
- Container(width:96,height:96,decoration:const BoxDecoration(color:Colors.white,shape:BoxShape.circle),child:const Icon(Icons.school,size:58,color:navy)),
- const SizedBox(height:18),const Text('New Iqra\\nChildren Academy',textAlign:TextAlign.center,style:TextStyle(color:Colors.white,fontSize:28,fontWeight:FontWeight.bold)),
- const Text('School Management System',style:TextStyle(color:Colors.white70)),const SizedBox(height:32),
- _field(u,'Username',Icons.person),const SizedBox(height:12),_field(p,'Password',Icons.lock,secret:true),const SizedBox(height:18),
- SizedBox(width:double.infinity,height:52,child:ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF0085FF),foregroundColor:Colors.white),onPressed:()=>Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>const HomePage())),child:const Text('LOGIN',style:TextStyle(fontWeight:FontWeight.bold,fontSize:17)))),
- const SizedBox(height:18),const Text('Demo login: admin / 1234',style:TextStyle(color:Colors.white70))
- ])))));
- Widget _field(TextEditingController c,String label,IconData icon,{bool secret=false})=>TextField(controller:c,obscureText:secret,decoration:InputDecoration(filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none),prefixIcon:Icon(icon,color:navy),hintText:label));
+
+class AcademyHome extends StatefulWidget {
+  const AcademyHome({super.key});
+
+  @override
+  State<AcademyHome> createState() => _AcademyHomeState();
 }
-class HomePage extends StatefulWidget{const HomePage({super.key});@override State<HomePage> createState()=>_HomePageState();}
-class _HomePageState extends State<HomePage>{
- int index=0;
- final pages=<Widget>[];
- @override Widget build(BuildContext context){
- final body=[_dashboard(),_students(),_fees(),_attendance(),_reports()][index];
- return Scaffold(appBar:AppBar(title:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('New Iqra Children Academy',style:TextStyle(fontSize:17,fontWeight:FontWeight.bold)),Text('Charsadda Road, Peshawar',style:TextStyle(fontSize:11,color:Colors.white70))]),actions:[IconButton(onPressed:()=>_settings(),icon:const Icon(Icons.settings))]),body:body,bottomNavigationBar:NavigationBar(selectedIndex:index,onDestinationSelected:(i)=>setState(()=>index=i),destinations:const[
- NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'Home'),
- NavigationDestination(icon:Icon(Icons.people_outline),selectedIcon:Icon(Icons.people),label:'Students'),
- NavigationDestination(icon:Icon(Icons.payments_outlined),selectedIcon:Icon(Icons.payments),label:'Fees'),
- NavigationDestination(icon:Icon(Icons.fact_check_outlined),selectedIcon:Icon(Icons.fact_check),label:'Attendance'),
- NavigationDestination(icon:Icon(Icons.description_outlined),selectedIcon:Icon(Icons.description),label:'Reports'),
- ]));
- }
- Widget _dashboard()=>ListView(padding:const EdgeInsets.all(16),children:[
- Row(children:[Expanded(child:_stat('Total Students','425',Icons.groups,blue)),const SizedBox(width:10),Expanded(child:_stat('Today Attendance','398 (94%)',Icons.calendar_month,Colors.green))]),
- const SizedBox(height:10),Row(children:[Expanded(child:_stat('Fee Collected','Rs. 125,000',Icons.account_balance_wallet,Colors.deepPurple)),const SizedBox(width:10),Expanded(child:_stat('Outstanding Fee','Rs. 48,500',Icons.money_off,Colors.redAccent))]),
- const SizedBox(height:10),Row(children:[Expanded(child:_stat('Total Teachers','24',Icons.person,Colors.orange)),const SizedBox(width:10),Expanded(child:_stat('Total Classes','10',Icons.menu_book,Colors.teal))]),
- const SizedBox(height:20),const Text('Quick Actions',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:navy)),const SizedBox(height:10),
- Wrap(spacing:10,runSpacing:10,children:[_quick('Add Student',Icons.person_add,Colors.teal,()=>_addStudent()),_quick('Collect Fee',Icons.payments,Colors.deepPurple,()=>setState(()=>index=2)),_quick('Attendance',Icons.fact_check,Colors.green,()=>setState(()=>index=3)),_quick('DMC / Result',Icons.school,blue,()=>_dmc(students.first)),_quick('ID Card',Icons.badge,Colors.pink,()=>_idCard(students.first))]),
- const SizedBox(height:20),const Text('Recent Students',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:navy)),...students.take(4).map((s)=>Card(child:ListTile(leading:_avatar(s),title:Text(s.name,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Roll ${s.roll} • Class ${s.clazz}'),trailing:const Icon(Icons.chevron_right),onTap:()=>_profile(s))))
- ]);
- Widget _stat(String title,String value,IconData icon,Color color)=>Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:color,borderRadius:BorderRadius.circular(16),boxShadow:[BoxShadow(color:color.withOpacity(.18),blurRadius:8,offset:const Offset(0,3))]),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(icon,color:Colors.white,size:25),const SizedBox(height:8),Text(title,style:const TextStyle(color:Colors.white,fontSize:12)),Text(value,style:const TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.bold))]));
- Widget _quick(String t,IconData i,Color c,VoidCallback f)=>SizedBox(width:104,height:90,child:Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:f,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(i,color:c,size:28),const SizedBox(height:7),Text(t,textAlign:TextAlign.center,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w600))]))));
- Widget _students()=>ListView(padding:const EdgeInsets.all(14),children:[TextField(decoration:InputDecoration(hintText:'Search by name or roll no...',prefixIcon:const Icon(Icons.search),filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none)),onChanged:(v)=>setState((){})),const SizedBox(height:10),...students.map((s)=>Card(child:ListTile(leading:_avatar(s),title:Text(s.name,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Roll No. ${s.roll} • Class ${s.clazz}'),trailing:const Icon(Icons.chevron_right),onTap:()=>_profile(s)))),ElevatedButton.icon(onPressed:_addStudent,icon:const Icon(Icons.add),label:const Text('Add Student'))]);
- Widget _fees()=>ListView(
-   padding: const EdgeInsets.all(14),
-   children: [
-    const Text('Student Fee Ledger', style: TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),
-    ...students.map((s)=>Card(
-      child: ListTile(
-       leading:_avatar(s),
-       title:Text(s.name),
-       subtitle:Text('Paid Rs. ${s.paid} • Due Rs. ${s.due}'),
-       trailing:IconButton(icon:const Icon(Icons.edit,color:blue),onPressed:()=>_editFee(s)),
+
+class _AcademyHomeState extends State<AcademyHome> {
+  static const navy = Color(0xFF073B70);
+  static const blue = Color(0xFF0756B5);
+
+  final picker = ImagePicker();
+
+  int tab = 0;
+  bool loading = true;
+
+  String schoolName = 'New Iqra Children Academy';
+  String schoolAddress = 'Charsadda Road, Peshawar';
+  String principal = 'Principal';
+
+  List<Map<String, dynamic>> students = [];
+  List<Map<String, dynamic>> fees = [];
+  List<Map<String, dynamic>> attendance = [];
+  List<Map<String, dynamic>> marks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
+
+  String val(Map<String, dynamic> m, String k) =>
+      '${m[k] ?? ''}';
+
+  double amount(dynamic v) =>
+      double.tryParse('$v') ?? 0;
+
+  String money(double n) =>
+      'Rs. ${n.toStringAsFixed(0)}';
+
+  String dateText(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String today() => dateText(DateTime.now());
+
+  List<Map<String, dynamic>> readList(
+    SharedPreferences p,
+    String key,
+  ) {
+    try {
+      final raw = p.getString(key);
+      if (raw == null) return [];
+
+      return List<Map<String, dynamic>>.from(
+        (jsonDecode(raw) as List).map(
+          (e) => Map<String, dynamic>.from(e),
+        ),
+      );
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> loadData() async {
+    final p = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
+    setState(() {
+      students = readList(p, 'academy_students');
+      fees = readList(p, 'academy_fees');
+      attendance = readList(p, 'academy_attendance');
+      marks = readList(p, 'academy_marks');
+
+      schoolName =
+          p.getString('academy_name') ?? schoolName;
+      schoolAddress =
+          p.getString('academy_address') ?? schoolAddress;
+      principal =
+          p.getString('academy_principal') ?? principal;
+
+      loading = false;
+    });
+  }
+
+  Future<void> saveData() async {
+    final p = await SharedPreferences.getInstance();
+
+    await p.setString(
+      'academy_students',
+      jsonEncode(students),
+    );
+
+    await p.setString(
+      'academy_fees',
+      jsonEncode(fees),
+    );
+
+    await p.setString(
+      'academy_attendance',
+      jsonEncode(attendance),
+    );
+
+    await p.setString(
+      'academy_marks',
+      jsonEncode(marks),
+    );
+
+    await p.setString('academy_name', schoolName);
+    await p.setString('academy_address', schoolAddress);
+    await p.setString('academy_principal', principal);
+  }
+
+  void toast(String s) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(s)),
+    );
+  }
+
+  Future<String?> pickDate(String initial) async {
+    final start =
+        DateTime.tryParse(initial) ?? DateTime.now();
+
+    final d = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: DateTime(1950),
+      lastDate: DateTime(2100),
+    );
+
+    return d == null ? null : dateText(d);
+  }
+
+  Future<String?> choosePhoto() async {
+    final source =
+        await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo / Camera'),
+              onTap: () =>
+                  Navigator.pop(c, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () =>
+                  Navigator.pop(c, ImageSource.gallery),
+            ),
+          ],
+        ),
       ),
-    )),
-   ],
-  );
- Widget _attendance()=>ListView(
-   padding: const EdgeInsets.all(14),
-   children: [
-    const Text('Class 5 • Attendance',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:navy)),
-    const SizedBox(height:10),
-    ...students.map((s)=>Card(
-      child: CheckboxListTile(
-       value:true,
-       onChanged:(v)=>setState((){}),
-       title:Text(s.name),
-       subtitle:Text(s.roll),
-       secondary:_avatar(s),
+    );
+
+    if (source == null) return null;
+
+    try {
+      final file = await picker.pickImage(
+        source: source,
+        imageQuality: 70,
+        maxWidth: 900,
+        maxHeight: 900,
+      );
+
+      if (file == null) return null;
+
+      return base64Encode(await file.readAsBytes());
+    } catch (e) {
+      toast('Photo selection failed: $e');
+      return null;
+    }
+  }
+
+  Widget studentPhoto(
+    String encoded, {
+    double size = 58,
+  }) {
+    Uint8List? bytes;
+
+    try {
+      if (encoded.isNotEmpty) {
+        bytes = base64Decode(encoded);
+      }
+    } catch (_) {}
+
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: const Color(0xFFE2EAF5),
+      backgroundImage:
+          bytes == null ? null : MemoryImage(bytes),
+      child: bytes == null
+          ? Icon(
+              Icons.person,
+              size: size * .55,
+              color: blue,
+            )
+          : null,
+    );
+  }
+
+  double paid(Map<String, dynamic> s) =>
+      fees
+          .where(
+            (f) => val(f, 'studentId') == val(s, 'id'),
+          )
+          .fold<double>(
+            0,
+            (a, f) => a + amount(f['amount']),
+          );
+
+  double due(Map<String, dynamic> s) =>
+      (amount(s['totalFee']) - paid(s))
+          .clamp(0, double.infinity)
+          .toDouble();
+
+  double get received =>
+      fees.fold<double>(
+        0,
+        (a, f) => a + amount(f['amount']),
+      );
+
+  double get outstanding =>
+      students.fold<double>(
+        0,
+        (a, s) => a + due(s),
+      );
+
+  int get present => attendance
+      .where(
+        (a) =>
+            val(a, 'date') == today() &&
+            val(a, 'status') == 'Present',
+      )
+      .length;
+
+  int get absent => attendance
+      .where(
+        (a) =>
+            val(a, 'date') == today() &&
+            val(a, 'status') == 'Absent',
+      )
+      .length;
+
+  Future<void> settings() async {
+    final n = TextEditingController(text: schoolName);
+    final a = TextEditingController(text: schoolAddress);
+    final pr = TextEditingController(text: principal);
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('School Settings'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              field(n, 'School Name'),
+              field(a, 'Address'),
+              field(pr, 'Principal Name'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (n.text.trim().isEmpty) return;
+
+              setState(() {
+                schoolName = n.text.trim();
+                schoolAddress = a.text.trim();
+                principal = pr.text.trim();
+              });
+
+              await saveData();
+
+              if (c.mounted) Navigator.pop(c);
+              toast('Settings saved');
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
-    )),
-    ElevatedButton(onPressed:()=>_message('Attendance saved successfully'),child:const Text('Save Attendance')),
-   ],
+    );
+
+    n.dispose();
+    a.dispose();
+    pr.dispose();
+  }
+
+  Widget field(
+    TextEditingController c,
+    String label, {
+    TextInputType type = TextInputType.text,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: TextField(
+          controller: c,
+          keyboardType: type,
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+      );
+
+  Widget dateField(
+    TextEditingController c,
+    String label,
+  ) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: TextField(
+          controller: c,
+          readOnly: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            suffixIcon: Icon(Icons.calendar_month),
+          ).copyWith(labelText: label),
+          onTap: () async {
+            final d = await pickDate(c.text);
+            if (d != null) c.text = d;
+          },
+        ),
+      );
+    Future<void> studentForm({
+    Map<String, dynamic>? old,
+  }) async {
+    final s = old ?? <String, dynamic>{};
+
+    final name = TextEditingController(text: val(s, 'name'));
+    final father = TextEditingController(text: val(s, 'father'));
+    final roll = TextEditingController(text: val(s, 'roll'));
+    final cls = TextEditingController(text: val(s, 'class'));
+    final phone = TextEditingController(text: val(s, 'phone'));
+    final address = TextEditingController(text: val(s, 'address'));
+    final dob = TextEditingController(text: val(s, 'dob'));
+    final admission = TextEditingController(
+      text: val(s, 'admissionDate').isEmpty
+          ? today()
+          : val(s, 'admissionDate'),
+    );
+    final fee = TextEditingController(
+      text: val(s, 'totalFee').isEmpty
+          ? '0'
+          : val(s, 'totalFee'),
+    );
+
+    String image = val(s, 'photo');
+
+    await showDialog(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, refresh) => AlertDialog(
+          title: Text(
+            old == null ? 'Student Registration' : 'Edit Student',
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  studentPhoto(image, size: 100),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final p = await choosePhoto();
+                      if (p != null) refresh(() => image = p);
+                    },
+                    icon: const Icon(Icons.add_a_photo),
+                    label: const Text('Camera / Gallery Photo'),
+                  ),
+                  if (image.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => refresh(() => image = ''),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Remove Photo'),
+                    ),
+                  const SizedBox(height: 12),
+                  field(name, 'Student Name *'),
+                  field(father, 'Father Name'),
+                  field(roll, 'Roll Number'),
+                  field(cls, 'Class'),
+                  field(
+                    phone,
+                    'Phone Number',
+                    type: TextInputType.phone,
+                  ),
+                  field(address, 'Address'),
+                  dateField(dob, 'Date of Birth'),
+                  dateField(admission, 'Admission Date'),
+                  field(
+                    fee,
+                    'Annual Fee (Rs.)',
+                    type: TextInputType.number,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().isEmpty) {
+                  toast('Student name required');
+                  return;
+                }
+
+                final item = <String, dynamic>{
+                  'id': old == null
+                      ? DateTime.now()
+                          .microsecondsSinceEpoch
+                          .toString()
+                      : val(s, 'id'),
+                  'name': name.text.trim(),
+                  'father': father.text.trim(),
+                  'roll': roll.text.trim(),
+                  'class': cls.text.trim(),
+                  'phone': phone.text.trim(),
+                  'address': address.text.trim(),
+                  'dob': dob.text,
+                  'admissionDate': admission.text,
+                  'totalFee': amount(fee.text),
+                  'photo': image,
+                };
+
+                setState(() {
+                  if (old == null) {
+                    students.add(item);
+                  } else {
+                    final i = students.indexWhere(
+                      (x) => val(x, 'id') == val(s, 'id'),
+                    );
+                    if (i >= 0) students[i] = item;
+                  }
+                });
+
+                await saveData();
+
+                if (c.mounted) Navigator.pop(c);
+                toast('Student saved');
+              },
+              child: const Text('Save Student'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    for (final x in [
+      name, father, roll, cls, phone,
+      address, dob, admission, fee,
+    ]) {
+      x.dispose();
+    }
+  }
+
+  Future<void> deleteStudent(
+    Map<String, dynamic> s,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete student?'),
+        content: Text(val(s, 'name')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      setState(() {
+        students.removeWhere(
+          (x) => val(x, 'id') == val(s, 'id'),
+        );
+      });
+
+      await saveData();
+      toast('Deleted');
+    }
+  }
+
+  Future<void> collectFee(
+    Map<String, dynamic> s,
+  ) async {
+    final a = TextEditingController();
+    final desc = TextEditingController(text: 'Monthly Fee');
+    final date = TextEditingController(text: today());
+    final note = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Collect Fee - ${val(s, 'name')}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Total ${money(amount(s['totalFee']))} '
+                '| Paid ${money(paid(s))} '
+                '| Due ${money(due(s))}',
+              ),
+              field(
+                a,
+                'Received Amount',
+                type: TextInputType.number,
+              ),
+              field(desc, 'Fee Description'),
+              dateField(date, 'Payment Date'),
+              field(note, 'Remarks'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (amount(a.text) <= 0) {
+                toast('Enter valid amount');
+                return;
+              }
+
+              final f = <String, dynamic>{
+                'id': DateTime.now()
+                    .microsecondsSinceEpoch
+                    .toString(),
+                'studentId': val(s, 'id'),
+                'studentName': val(s, 'name'),
+                'roll': val(s, 'roll'),
+                'class': val(s, 'class'),
+                'amount': amount(a.text),
+                'month': desc.text,
+                'date': date.text,
+                'note': note.text,
+              };
+
+              setState(() => fees.add(f));
+              await saveData();
+
+              if (c.mounted) Navigator.pop(c);
+              await receipt(f);
+            },
+            child: const Text('Save & Print Receipt'),
+          ),
+        ],
+      ),
+    );
+
+    a.dispose();
+    desc.dispose();
+    date.dispose();
+    note.dispose();
+  }
+
+  Future<void> markAttendance(
+    Map<String, dynamic> s,
+    String status,
+    String date,
+  ) async {
+    final i = attendance.indexWhere(
+      (a) =>
+          val(a, 'studentId') == val(s, 'id') &&
+          val(a, 'date') == date,
+    );
+
+    final r = <String, dynamic>{
+      'studentId': val(s, 'id'),
+      'studentName': val(s, 'name'),
+      'roll': val(s, 'roll'),
+      'class': val(s, 'class'),
+      'date': date,
+      'status': status,
+    };
+
+    setState(() {
+      if (i < 0) {
+        attendance.add(r);
+      } else {
+        attendance[i] = r;
+      }
+    });
+
+    await saveData();
+    toast('$status saved');
+  }
+
+  Future<void> marksForm(
+    Map<String, dynamic> s,
+  ) async {
+    final exam = TextEditingController(
+      text: 'Annual Examination',
+    );
+    final subject = TextEditingController();
+    final total = TextEditingController(text: '100');
+    final obtained = TextEditingController();
+    final date = TextEditingController(text: today());
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Marks - ${val(s, 'name')}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              field(exam, 'Exam Name'),
+              field(subject, 'Subject'),
+              field(
+                total,
+                'Total Marks',
+                type: TextInputType.number,
+              ),
+              field(
+                obtained,
+                'Obtained Marks',
+                type: TextInputType.number,
+              ),
+              dateField(date, 'Exam Date'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final t = amount(total.text);
+              final o = amount(obtained.text);
+
+              if (subject.text.trim().isEmpty ||
+                  t <= 0 || o < 0 || o > t) {
+                toast('Check marks');
+                return;
+              }
+
+              setState(() {
+                marks.add({
+                  'studentId': val(s, 'id'),
+                  'studentName': val(s, 'name'),
+                  'roll': val(s, 'roll'),
+                  'class': val(s, 'class'),
+                  'exam': exam.text,
+                  'subject': subject.text,
+                  'total': t,
+                  'obtained': o,
+                  'date': date.text,
+                });
+              });
+
+              await saveData();
+
+              if (c.mounted) Navigator.pop(c);
+              toast('Marks saved');
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    exam.dispose();
+    subject.dispose();
+    total.dispose();
+    obtained.dispose();
+    date.dispose();
+  }
+
+  Future<void> designedPdf(
+    Map<String, dynamic> s,
+    String kind,
+  ) async {
+    final doc = pw.Document();
+
+    pw.MemoryImage? image;
+
+    try {
+      final raw = val(s, 'photo');
+      if (raw.isNotEmpty) {
+        image = pw.MemoryImage(base64Decode(raw));
+      }
+    } catch (_) {}
+
+    final sm = marks
+        .where(
+          (m) => val(m, 'studentId') == val(s, 'id'),
+        )
+        .toList();
+
+    final tm = sm.fold<double>(
+      0,
+      (a, m) => a + amount(m['total']),
+    );
+
+    final om = sm.fold<double>(
+      0,
+      (a, m) => a + amount(m['obtained']),
+    );
+
+    final pct = tm == 0 ? 0.0 : om / tm * 100;
+
+    final isId = kind == 'id';
+    final isDmc = kind == 'dmc';
+
+    final title = {
+      'id': 'STUDENT ID CARD',
+      'dmc': 'DETAILED MARKS CERTIFICATE',
+      'character': 'CHARACTER CERTIFICATE',
+      'leaving': 'SCHOOL LEAVING CERTIFICATE',
+      'fee': 'STUDENT FEE CARD',
+    }[kind] ?? 'STUDENT DOCUMENT';
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: isId
+            ? const PdfPageFormat(350, 230)
+            : PdfPageFormat.a4,
+        margin: pw.EdgeInsets.all(isId ? 10 : 35),
+        build: (ctx) => pw.Container(
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(
+              color: PdfColors.blue900,
+              width: isId ? 2 : 4,
+            ),
+          ),
+          padding: pw.EdgeInsets.all(isId ? 9 : 22),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.Container(
+                color: PdfColors.blue900,
+                padding: const pw.EdgeInsets.all(10),
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      schoolName,
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: isId ? 14 : 23,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      schoolAddress,
+                      style: const pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 9,
+                      ),
+                    ),
+                    if (!isId)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 8),
+                        child: pw.Text(
+                          title,
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 16),
+
+              if (isId)
+                pw.Row(
+                  children: [
+                    if (image != null)
+                      pw.Container(
+                        width: 78,
+                        height: 90,
+                        child: pw.Image(
+                          image,
+                          fit: pw.BoxFit.cover,
+                        ),
+                      ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment:
+                            pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            val(s, 'name'),
+                            style: pw.TextStyle(
+                              fontSize: 15,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text('Father: ${val(s, 'father')}'),
+                          pw.Text('Roll: ${val(s, 'roll')}'),
+                          pw.Text('Class: ${val(s, 'class')}'),
+                          pw.Text('Phone: ${val(s, 'phone')}'),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else if (isDmc) ...[
+                pw.Row(
+                  children: [
+                    if (image != null)
+                      pw.Container(
+                        width: 65,
+                        height: 75,
+                        child: pw.Image(
+                          image,
+                          fit: pw.BoxFit.cover,
+                        ),
+                      ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment:
+                            pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Student: ${val(s, 'name')}'),
+                          pw.Text('Father: ${val(s, 'father')}'),
+                          pw.Text(
+                            'Roll: ${val(s, 'roll')}    '
+                            'Class: ${val(s, 'class')}',
+                          ),
+                          pw.Text(
+                            'Exam: ${sm.isEmpty ? '-' : val(sm.first, 'exam')}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 14),
+                pw.TableHelper.fromTextArray(
+                  headers: ['Subject', 'Total', 'Obtained'],
+                  data: sm.map((m) => [
+                    val(m, 'subject'),
+                    '${m['total']}',
+                    '${m['obtained']}',
+                  ]).toList(),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  'Total: ${tm.toStringAsFixed(0)}    '
+                  'Obtained: ${om.toStringAsFixed(0)}    '
+                  'Percentage: ${pct.toStringAsFixed(2)}%',
+                ),
+                pw.Text(
+                  'Result: ${pct >= 40 ? 'PASS' : 'NEEDS IMPROVEMENT'}',
+                ),
+              ] else if (kind == 'fee') ...[
+                pw.Text('Student: ${val(s, 'name')}'),
+                pw.Text('Father: ${val(s, 'father')}'),
+                pw.Text(
+                  'Roll: ${val(s, 'roll')}    '
+                  'Class: ${val(s, 'class')}',
+                ),
+                pw.Text(
+                  'Annual Fee: ${money(amount(s['totalFee']))}',
+                ),
+                pw.Text('Received: ${money(paid(s))}'),
+                pw.Text('Outstanding: ${money(due(s))}'),
+                pw.SizedBox(height: 12),
+                pw.TableHelper.fromTextArray(
+                  headers: ['Date', 'Description', 'Amount'],
+                  data: fees
+                      .where(
+                        (f) =>
+                            val(f, 'studentId') == val(s, 'id'),
+                      )
+                      .map((f) => [
+                        val(f, 'date'),
+                        val(f, 'month'),
+                        money(amount(f['amount'])),
+                      ])
+                      .toList(),
+                ),
+              ] else ...[
+                pw.SizedBox(height: 28),
+                pw.Text(
+                  'This is to certify that',
+                  textAlign: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  val(s, 'name'),
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: 23,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Son/Daughter of ${val(s, 'father')}',
+                  textAlign: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  kind == 'character'
+                      ? 'has been a student of this institution. '
+                        'To the best of our knowledge, their character '
+                        'and conduct during the period of study has '
+                        'been satisfactory.'
+                      : 'was admitted to this institution on '
+                        '${val(s, 'admissionDate')} and studied in '
+                        'class ${val(s, 'class')}. This certificate '
+                        'is issued on request.',
+                  textAlign: pw.TextAlign.center,
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  'Issue Date: $today()',
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
+
+              pw.Spacer(),
+
+              pw.Row(
+                mainAxisAlignment:
+                    pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    children: [
+                      pw.Container(
+                        width: 120,
+                        height: 1,
+                        color: PdfColors.black,
+                      ),
+                      pw.Text('Class Teacher'),
+                    ],
+                  ),
+                  pw.Column(
+                    children: [
+                      pw.Container(
+                        width: 120,
+                        height: 1,
+                        color: PdfColors.black,
+                      ),
+                      pw.Text(principal),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => doc.save(),
+    );
+  }
+    Future<void> receipt(Map<String, dynamic> f) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        build: (c) => pw.Container(
+          padding: const pw.EdgeInsets.all(25),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(
+              color: PdfColors.blue,
+              width: 3,
+            ),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.Text(
+                schoolName,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Text(
+                schoolAddress,
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.SizedBox(height: 22),
+              pw.Text(
+                'FEE PAYMENT RECEIPT',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Divider(),
+              pw.Text('Date: ${val(f, 'date')}'),
+              pw.Text('Student: ${val(f, 'studentName')}'),
+              pw.Text(
+                'Roll: ${val(f, 'roll')}   '
+                'Class: ${val(f, 'class')}',
+              ),
+              pw.Text('Description: ${val(f, 'month')}'),
+              pw.SizedBox(height: 15),
+              pw.Text(
+                'Received: ${money(amount(f['amount']))}',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Spacer(),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text('Cashier Signature'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => doc.save(),
+    );
+  }
+
+  Future<void> reportPdf(
+    String title,
+    List<List<String>> rows,
+  ) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        build: (c) => [
+          pw.Center(
+            child: pw.Text(
+              schoolName,
+              style: pw.TextStyle(
+                fontSize: 22,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.Center(child: pw.Text(schoolAddress)),
+          pw.SizedBox(height: 12),
+          pw.Center(
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 15),
+          pw.TableHelper.fromTextArray(
+            headers: rows.first,
+            data: rows.skip(1).toList(),
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text('Generated: ${today()}'),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => doc.save(),
+    );
+  }
+
+  Future<void> selectStudent(
+    String title,
+    Future<void> Function(Map<String, dynamic>) action,
+  ) async {
+    if (students.isEmpty) {
+      toast('Add students first');
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 400,
+          height: 350,
+          child: ListView(
+            children: students.map((s) {
+              return ListTile(
+                leading: studentPhoto(
+                  val(s, 'photo'),
+                  size: 42,
+                ),
+                title: Text(val(s, 'name')),
+                subtitle: Text(
+                  'Roll ${val(s, 'roll')} • ${val(s, 'class')}',
+                ),
+                onTap: () {
+                  Navigator.pop(c);
+                  action(s);
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget stat(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) =>
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget actionChip(
+    String text,
+    IconData icon,
+    VoidCallback onTap,
+  ) =>
+      ActionChip(
+        avatar: Icon(icon, size: 18),
+        label: Text(text),
+        onPressed: onTap,
+      );
+
+  Widget dashboard() => ListView(
+    padding: const EdgeInsets.all(14),
+    children: [
+      Text(
+        'Welcome to $schoolName',
+        style: const TextStyle(
+          fontSize: 21,
+          fontWeight: FontWeight.bold,
+          color: navy,
+        ),
+      ),
+      Text(schoolAddress),
+      const SizedBox(height: 12),
+
+      GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        childAspectRatio: 1.5,
+        children: [
+          stat(
+            'Total Students',
+            '${students.length}',
+            Icons.people,
+            Colors.blue,
+          ),
+          stat(
+            'Present Today',
+            '$present',
+            Icons.check_circle,
+            Colors.green,
+          ),
+          stat(
+            'Fee Received',
+            money(received),
+            Icons.payments,
+            Colors.purple,
+          ),
+          stat(
+            'Outstanding',
+            money(outstanding),
+            Icons.money_off,
+            Colors.red,
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 12),
+      const Text(
+        'Quick Actions',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          actionChip(
+            'Add Student',
+            Icons.person_add,
+            () => studentForm(),
+          ),
+          actionChip(
+            'Students',
+            Icons.people,
+            () => setState(() => tab = 1),
+          ),
+          actionChip(
+            'Attendance',
+            Icons.fact_check,
+            () => setState(() => tab = 2),
+          ),
+          actionChip(
+            'Fees',
+            Icons.payments,
+            () => setState(() => tab = 3),
+          ),
+          actionChip(
+            'Reports & Cards',
+            Icons.picture_as_pdf,
+            () => setState(() => tab = 4),
+          ),
+          actionChip(
+            'Settings',
+            Icons.settings,
+            settings,
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 12),
+      const Text(
+        'Recent Fee Payments',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 17,
+        ),
+      ),
+
+      ...fees.reversed.take(5).map(
+        (f) => Card(
+          child: ListTile(
+            leading: const Icon(Icons.receipt),
+            title: Text(val(f, 'studentName')),
+            subtitle: Text(
+              '${val(f, 'date')} • ${val(f, 'month')}',
+            ),
+            trailing: Text(
+              money(amount(f['amount'])),
+            ),
+          ),
+        ),
+      ),
+    ],
   );
- Widget _reports()=>ListView(padding:const EdgeInsets.all(14),children:[_report('Student List (PDF/Excel)',Icons.people),_report('Fee Report (PDF/Excel)',Icons.payments),_report('Attendance Report',Icons.fact_check),_report('DMC / Result Report',Icons.school),_report('Leaving Students Report',Icons.exit_to_app),_report('ID Cards (Bulk)',Icons.badge)]);
- Widget _report(String s,IconData i)=>Card(child:ListTile(leading:Icon(i,color:blue),title:Text(s),trailing:const Icon(Icons.chevron_right),onTap:()=>_message('Report export will be configured in next step.')));
- Widget _avatar(Student s)=>CircleAvatar(backgroundColor:const Color(0xFFDCEBFC),child:Text(s.name.split(' ').map((e)=>e[0]).take(2).join(),style:const TextStyle(color:navy,fontWeight:FontWeight.bold)));
- void _profile(Student s)=>showModalBottomSheet(context:context,isScrollControlled:true,builder:(c)=>Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[_avatar(s),const SizedBox(width:12),Expanded(child:Text(s.name,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold,color:navy))),IconButton(onPressed:()=>_editStudent(s),icon:const Icon(Icons.edit))]),Text('Roll No: ${s.roll} • Class: ${s.clazz}'),Text('Father: ${s.father}'),Text('DOB: ${s.dob}'),Text('Phone: ${s.phone}'),const SizedBox(height:12),Wrap(spacing:8,children:[OutlinedButton(onPressed:()=>_idCard(s),child:const Text('ID Card')),OutlinedButton(onPressed:()=>_dmc(s),child:const Text('DMC')),OutlinedButton(onPressed:()=>_editFee(s),child:const Text('Fee Card'))]) ])));
- void _addStudent(){final s=Student('New Student','Father Name','A${students.length+1}','5','03xx-xxxxxxx','01-01-2015');_editStudent(s,adding:true);}
- void _editStudent(Student s,{bool adding=false}){final name=TextEditingController(text:s.name),father=TextEditingController(text:s.father),roll=TextEditingController(text:s.roll),phone=TextEditingController(text:s.phone);showDialog(context:context,builder:(c)=>AlertDialog(title:Text(adding?'Register Student':'Edit Student'),content:SingleChildScrollView(child:Column(children:[_dialogField(name,'Student Name'),_dialogField(father,'Father Name'),_dialogField(roll,'Roll Number'),_dialogField(phone,'Phone Number')])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){s.name=name.text;s.father=father.text;s.roll=roll.text;s.phone=phone.text;if(adding)students.add(s);setState((){});Navigator.pop(c);},child:const Text('Save'))]));}
- Widget _dialogField(TextEditingController c,String label)=>Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(controller:c,decoration:InputDecoration(labelText:label,border:const OutlineInputBorder())));
- void _editFee(Student s){final paid=TextEditingController(text:'${s.paid}'),due=TextEditingController(text:'${s.due}');showDialog(context:context,builder:(c)=>AlertDialog(title:Text('Fee Card • ${s.name}'),content:Column(mainAxisSize:MainAxisSize.min,children:[_dialogField(paid,'Paid Rs.'),_dialogField(due,'Due Rs.')]),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),ElevatedButton(onPressed:(){s.paid=int.tryParse(paid.text)??s.paid;s.due=int.tryParse(due.text)??s.due;setState((){});Navigator.pop(c);},child:const Text('Save'))]));}
- void _dmc(Student s){showDialog(context:context,builder:(c)=>StatefulBuilder(builder:(c,setLocal)=>AlertDialog(title:Text('DMC • ${s.name}'),content:SizedBox(width:330,child:SingleChildScrollView(child:Column(children:s.marks.entries.map((e)=>Row(children:[Expanded(child:Text(e.key)),SizedBox(width:75,child:TextFormField(initialValue:'${e.value}',keyboardType:TextInputType.number,onChanged:(v){s.marks[e.key]=int.tryParse(v)??0;setLocal((){});},decoration:const InputDecoration(isDense:true,border:OutlineInputBorder())))] )).toList()))),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Done'))])));}
- void _idCard(Student s){showDialog(context:context,builder:(c)=>AlertDialog(title:const Text('Student ID Card'),content:Container(width:300,padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:blue),borderRadius:BorderRadius.circular(14)),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.school,color:navy,size:36),const Text('NEW IQRA CHILDREN ACADEMY',textAlign:TextAlign.center,style:TextStyle(color:navy,fontWeight:FontWeight.bold)),const Divider(),_avatar(s),Text(s.name,style:const TextStyle(fontWeight:FontWeight.bold)),Text('Roll: ${s.roll}   Class: ${s.clazz}'),Text('Father: ${s.father}'),Text('DOB: ${s.dob}') ])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Close'))]));}
- void _settings(){final user=TextEditingController(text:'admin'),pass=TextEditingController(text:'1234');showDialog(context:context,builder:(c)=>AlertDialog(title:const Text('Login Settings'),content:Column(mainAxisSize:MainAxisSize.min,children:[_dialogField(user,'New Username'),_dialogField(pass,'New Password')]),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Close')),ElevatedButton(onPressed:()=>Navigator.pop(c),child:const Text('Save'))]));}
- void _message(String m)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(m)));
+
+  Widget studentsPage() => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Students (${students.length})',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () => studentForm(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Student'),
+            ),
+          ],
+        ),
+      ),
+
+      Expanded(
+        child: students.isEmpty
+            ? const Center(
+                child: Text('No students registered'),
+              )
+            : ListView.builder(
+                itemCount: students.length,
+                itemBuilder: (c, i) {
+                  final s = students[i];
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    child: ListTile(
+                      leading: studentPhoto(
+                        val(s, 'photo'),
+                      ),
+                      title: Text(val(s, 'name')),
+                      subtitle: Text(
+                        'Roll ${val(s, 'roll')} • '
+                        'Class ${val(s, 'class')}',
+                      ),
+                      onTap: () => studentDetails(s),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (v) {
+                          if (v == 'edit') {
+                            studentForm(old: s);
+                          }
+                          if (v == 'delete') {
+                            deleteStudent(s);
+                          }
+                          if (v == 'fee') {
+                            collectFee(s);
+                          }
+                          if (v == 'marks') {
+                            marksForm(s);
+                          }
+                          if (v == 'id') {
+                            designedPdf(s, 'id');
+                          }
+                          if (v == 'dmc') {
+                            designedPdf(s, 'dmc');
+                          }
+                          if (v == 'character') {
+                            designedPdf(s, 'character');
+                          }
+                          if (v == 'leaving') {
+                            designedPdf(s, 'leaving');
+                          }
+                          if (v == 'feecard') {
+                            designedPdf(s, 'fee');
+                          }
+                        },
+                        itemBuilder: (c) => const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit Student'),
+                          ),
+                          PopupMenuItem(
+                            value: 'fee',
+                            child: Text('Collect Fee'),
+                          ),
+                          PopupMenuItem(
+                            value: 'marks',
+                            child: Text('Add Exam Marks'),
+                          ),
+                          PopupMenuItem(
+                            value: 'id',
+                            child: Text('Student ID Card'),
+                          ),
+                          PopupMenuItem(
+                            value: 'dmc',
+                            child: Text('DMC / Result Card'),
+                          ),
+                          PopupMenuItem(
+                            value: 'character',
+                            child: Text('Character Certificate'),
+                          ),
+                          PopupMenuItem(
+                            value: 'leaving',
+                            child: Text('Leaving Certificate'),
+                          ),
+                          PopupMenuItem(
+                            value: 'feecard',
+                            child: Text('Fee Card'),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    ],
+  );
+
+  Future<void> studentDetails(
+    Map<String, dynamic> s,
+  ) async {
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Student Profile'),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                studentPhoto(
+                  val(s, 'photo'),
+                  size: 100,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  val(s, 'name'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Divider(),
+                info('Father', val(s, 'father')),
+                info('Roll', val(s, 'roll')),
+                info('Class', val(s, 'class')),
+                info('Phone', val(s, 'phone')),
+                info('DOB', val(s, 'dob')),
+                info('Admission', val(s, 'admissionDate')),
+                info(
+                  'Annual Fee',
+                  money(amount(s['totalFee'])),
+                ),
+                info('Paid', money(paid(s))),
+                info('Due', money(due(s))),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(c);
+              studentForm(old: s);
+            },
+            child: const Text('Edit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget info(String k, String v) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            k,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Expanded(child: Text(v)),
+      ],
+    ),
+  );
+
+  Widget attendancePage() {
+    final date = TextEditingController(text: today());
+
+    return StatefulBuilder(
+      builder: (context, refresh) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Attendance',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final d = await pickDate(date.text);
+                    if (d != null) {
+                      refresh(() => date.text = d);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_month),
+                  label: Text(date.text),
+                ),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: ListView.builder(
+              itemCount: students.length,
+              itemBuilder: (c, i) {
+                final s = students[i];
+
+                final rec = attendance.where(
+                  (a) =>
+                      val(a, 'studentId') == val(s, 'id') &&
+                      val(a, 'date') == date.text,
+                );
+
+                final status = rec.isEmpty
+                    ? 'Not Marked'
+                    : val(rec.first, 'status');
+
+                return Card(
+                  child: ListTile(
+                    leading: studentPhoto(
+                      val(s, 'photo'),
+                      size: 44,
+                    ),
+                    title: Text(val(s, 'name')),
+                    subtitle: Text(
+                      '${val(s, 'roll')} • $status',
+                    ),
+                    trailing: Wrap(
+                      spacing: 0,
+                      children: [
+                        IconButton(
+                          onPressed: () async {
+                            await markAttendance(
+                              s,
+                              'Present',
+                              date.text,
+                            );
+                            refresh(() {});
+                          },
+                          icon: const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            await markAttendance(
+                              s,
+                              'Absent',
+                              date.text,
+                            );
+                            refresh(() {});
+                          },
+                          icon: const Icon(
+                            Icons.cancel,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget feesPage() => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Expanded(
+              child: stat(
+                'Received',
+                money(received),
+                Icons.payments,
+                Colors.green,
+              ),
+            ),
+            Expanded(
+              child: stat(
+                'Due',
+                money(outstanding),
+                Icons.money_off,
+                Colors.red,
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      Expanded(
+        child: ListView.builder(
+          itemCount: students.length,
+          itemBuilder: (c, i) {
+            final s = students[i];
+
+            return Card(
+              child: ListTile(
+                leading: studentPhoto(
+                  val(s, 'photo'),
+                  size: 44,
+                ),
+                title: Text(val(s, 'name')),
+                subtitle: Text(
+                  'Paid ${money(paid(s))} • '
+                  'Due ${money(due(s))}',
+                ),
+                trailing: IconButton(
+                  onPressed: () => collectFee(s),
+                  icon: const Icon(
+                    Icons.add_circle,
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+
+  Widget reportTile(
+    String title,
+    IconData icon,
+    VoidCallback fn,
+  ) =>
+      Card(
+        child: ListTile(
+          leading: Icon(icon, color: blue),
+          title: Text(title),
+          trailing: const Icon(Icons.picture_as_pdf),
+          onTap: fn,
+        ),
+      );
+
+  Widget reportsPage() => ListView(
+    padding: const EdgeInsets.all(12),
+    children: [
+      const Text(
+        'Reports, Cards & Certificates',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      reportTile(
+        'Student List Report',
+        Icons.groups,
+        () => reportPdf('STUDENT LIST', [
+          ['Name', 'Father', 'Roll', 'Class', 'Phone'],
+          ...students.map(
+            (s) => [
+              val(s, 'name'),
+              val(s, 'father'),
+              val(s, 'roll'),
+              val(s, 'class'),
+              val(s, 'phone'),
+            ],
+          ),
+        ]),
+      ),
+
+      reportTile(
+        'Fee Collection Report',
+        Icons.payments,
+        () => reportPdf('FEE COLLECTION', [
+          ['Date', 'Student', 'Month', 'Amount'],
+          ...fees.map(
+            (f) => [
+              val(f, 'date'),
+              val(f, 'studentName'),
+              val(f, 'month'),
+              money(amount(f['amount'])),
+            ],
+          ),
+        ]),
+      ),
+
+      reportTile(
+        'Attendance Report',
+        Icons.fact_check,
+        () => reportPdf('ATTENDANCE', [
+          ['Date', 'Student', 'Roll', 'Class', 'Status'],
+          ...attendance.map(
+            (a) => [
+              val(a, 'date'),
+              val(a, 'studentName'),
+              val(a, 'roll'),
+              val(a, 'class'),
+              val(a, 'status'),
+            ],
+          ),
+        ]),
+      ),
+
+      reportTile(
+        'Student ID Card - Designed',
+        Icons.badge,
+        () => selectStudent(
+          'Select Student for ID Card',
+          (s) => designedPdf(s, 'id'),
+        ),
+      ),
+
+      reportTile(
+        'DMC / Result Card - Designed',
+        Icons.school,
+        () => selectStudent(
+          'Select Student for DMC',
+          (s) => designedPdf(s, 'dmc'),
+        ),
+      ),
+
+      reportTile(
+        'Character Certificate',
+        Icons.verified,
+        () => selectStudent(
+          'Select Student',
+          (s) => designedPdf(s, 'character'),
+        ),
+      ),
+
+      reportTile(
+        'School Leaving Certificate',
+        Icons.description,
+        () => selectStudent(
+          'Select Student',
+          (s) => designedPdf(s, 'leaving'),
+        ),
+      ),
+
+      reportTile(
+        'Student Fee Card',
+        Icons.credit_card,
+        () => selectStudent(
+          'Select Student',
+          (s) => designedPdf(s, 'fee'),
+        ),
+      ),
+
+      reportTile(
+        'Add / Update Exam Marks',
+        Icons.edit_note,
+        () => selectStudent(
+          'Select Student',
+          marksForm,
+        ),
+      ),
+    ],
+  );
+
+  Widget settingsPage() => ListView(
+    padding: const EdgeInsets.all(12),
+    children: [
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.settings),
+          title: Text(schoolName),
+          subtitle: Text(schoolAddress),
+          trailing: const Icon(Icons.edit),
+          onTap: settings,
+        ),
+      ),
+    ],
+  );
+
+  Widget currentPage() {
+    switch (tab) {
+      case 0:
+        return dashboard();
+      case 1:
+        return studentsPage();
+      case 2:
+        return attendancePage();
+      case 3:
+        return feesPage();
+      case 4:
+        return reportsPage();
+      default:
+        return dashboard();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              schoolName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              [
+                'Dashboard',
+                'Students',
+                'Attendance',
+                'Fees',
+                'Reports',
+              ][tab],
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: settings,
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
+
+      body: currentPage(),
+
+      floatingActionButton: tab == 1
+          ? FloatingActionButton(
+              onPressed: () => studentForm(),
+              child: const Icon(Icons.person_add),
+            )
+          : null,
+
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (i) {
+          setState(() => tab = i);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            label: 'Students',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.fact_check_outlined),
+            label: 'Attendance',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.payments_outlined),
+            label: 'Fees',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            label: 'Reports',
+          ),
+        ],
+      ),
+    );
+  }
 }
