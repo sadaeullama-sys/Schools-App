@@ -1,63 +1,439 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const AcademyApp());
 }
 
+const adminUsername = 'Muhammad Ilyas';
+// Admin password is checked locally. Change it before distributing the app.
+const adminPassword = '03135353153';
+const supportNumber = '03161847676';
+
+const classes = [
+  'First', 'Second', 'Third', 'Fourth', 'Fifth',
+  'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'
+];
+
+List<String> subjectsFor(String className) {
+  final junior = [
+    'English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiat'
+  ];
+  final middle = [
+    'English', 'Urdu', 'Mathematics', 'Science',
+    'Islamiat', 'Computer', 'Social Studies'
+  ];
+  final matric = [
+    'English', 'Urdu', 'Mathematics', 'Physics',
+    'Chemistry', 'Biology', 'Computer', 'Islamiat',
+    'Pakistan Studies'
+  ];
+
+  if (['First', 'Second', 'Third', 'Fourth', 'Fifth']
+      .contains(className)) return junior;
+  if (['Sixth', 'Seventh', 'Eighth'].contains(className)) return middle;
+  return matric;
+}
+
 class AcademyApp extends StatelessWidget {
   const AcademyApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'New Iqra Children Academy',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF0756B5),
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'New Iqra Children Academy',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff123c70)),
+        useMaterial3: true,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF3F6FC),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF073B70),
-        foregroundColor: Colors.white,
-      ),
-    ),
-    home: const AcademyHome(),
-  );
+      home: const StartPage(),
+    );
+  }
 }
 
+class StartPage extends StatefulWidget {
+  const StartPage({super.key});
+
+  @override
+  State<StartPage> createState() => _StartPageState();
+}
+
+class _StartPageState extends State<StartPage> {
+  bool loading = true;
+  bool activated = false;
+  bool loggedIn = false;
+  String schoolName = 'New Iqra Children Academy';
+
+  @override
+  void initState() {
+    super.initState();
+    checkApp();
+  }
+
+  Future<void> checkApp() async {
+    final p = await SharedPreferences.getInstance();
+    schoolName = p.getString('academy_name') ?? schoolName;
+    activated = p.getBool('academy_activated') ?? false;
+    loggedIn = p.getBool('academy_logged_in') ?? false;
+    if (!mounted) return;
+    setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!activated) {
+      return ActivationPage(onActivated: (name) async {
+        final p = await SharedPreferences.getInstance();
+        await p.setBool('academy_activated', true);
+        await p.setString('academy_name', name);
+        setState(() {
+          schoolName = name;
+          activated = true;
+        });
+      });
+    }
+
+    if (!loggedIn) {
+      return CustomerLoginPage(onLogin: () {
+        setState(() => loggedIn = true);
+      });
+    }
+
+    return AcademyHome(schoolName: schoolName);
+  }
+}
+
+class ActivationPage extends StatefulWidget {
+  final ValueChanged<String> onActivated;
+  const ActivationPage({super.key, required this.onActivated});
+
+  @override
+  State<ActivationPage> createState() => _ActivationPageState();
+}
+
+class _ActivationPageState extends State<ActivationPage> {
+  final keyController = TextEditingController();
+  String message = '';
+
+  // Basic offline activation for a prototype.
+  // This is not tamper-proof: a generator inside the same APK cannot
+  // securely protect its signing secret from a determined attacker.
+  String makeKey(String name, String duration) {
+    final raw = '$name|$duration|IQRA2026';
+    return base64Url.encode(utf8.encode(raw)).replaceAll('=', '');
+  }
+
+  Future<void> activate() async {
+    try {
+      final decoded = utf8.decode(
+        base64Url.decode(base64Url.normalize(keyController.text.trim())),
+      );
+      final parts = decoded.split('|');
+      if (parts.length != 3 || parts[2] != 'IQRA2026') {
+        setState(() => message = 'Invalid License Key');
+        return;
+      }
+
+      final name = parts[0].trim();
+      if (name.isEmpty) {
+        setState(() => message = 'Invalid School Name');
+        return;
+      }
+
+      final p = await SharedPreferences.getInstance();
+      await p.setString('academy_name', name);
+      await p.setString('academy_license_duration', parts[1]);
+      widget.onActivated(name);
+    } catch (_) {
+      setState(() => message = 'Invalid License Key');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('License Activation')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              const Icon(Icons.school, size: 75, color: Colors.blue),
+              const SizedBox(height: 18),
+              const Text('New Iqra Children Academy',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: keyController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter License Key',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: activate,
+                  child: const Text('Activate License'),
+                ),
+              ),
+              Text(message, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 20),
+              Text('License Support: $supportNumber'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CustomerLoginPage extends StatefulWidget {
+  final VoidCallback onLogin;
+  const CustomerLoginPage({super.key, required this.onLogin});
+
+  @override
+  State<CustomerLoginPage> createState() => _CustomerLoginPageState();
+}
+
+class _CustomerLoginPageState extends State<CustomerLoginPage> {
+  final user = TextEditingController();
+  final pass = TextEditingController();
+  String error = '';
+  int logoTaps = 0;
+
+  Future<void> login() async {
+    final p = await SharedPreferences.getInstance();
+    final savedUser = p.getString('academy_customer_user') ?? 'admin';
+    final savedPass = p.getString('academy_customer_pass') ?? '1234';
+
+    if (user.text.trim() == savedUser && pass.text == savedPass) {
+      await p.setBool('academy_logged_in', true);
+      widget.onLogin();
+    } else {
+      setState(() => error = 'Username or password is incorrect');
+    }
+  }
+
+  void openAdmin() {
+    Navigator.push(context,
+      MaterialPageRoute(builder: (_) => const AdminLoginPage()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  logoTaps++;
+                  if (logoTaps >= 5) {
+                    logoTaps = 0;
+                    openAdmin();
+                  }
+                },
+                child: const CircleAvatar(
+                  radius: 48,
+                  child: Icon(Icons.school, size: 55),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('Customer Login',
+                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: user,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pass,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: login,
+                  child: const Text('Login'),
+                ),
+              ),
+              Text(error, style: const TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({super.key});
+
+  @override
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
+}
+
+class _AdminLoginPageState extends State<AdminLoginPage> {
+  final user = TextEditingController();
+  final pass = TextEditingController();
+  String error = '';
+
+  void login() {
+    if (user.text.trim() == adminUsername && pass.text == adminPassword) {
+      Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => const AdminPanel()));
+    } else {
+      setState(() => error = 'Admin login incorrect');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Admin Login')),
+      body: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          children: [
+            TextField(controller: user,
+              decoration: const InputDecoration(labelText: 'Admin Username')),
+            TextField(controller: pass, obscureText: true,
+              decoration: const InputDecoration(labelText: 'Admin Password')),
+            const SizedBox(height: 15),
+            FilledButton(onPressed: login, child: const Text('Login')),
+            Text(error, style: const TextStyle(color: Colors.red)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AdminPanel extends StatefulWidget {
+  const AdminPanel({super.key});
+
+  @override
+  State<AdminPanel> createState() => _AdminPanelState();
+}
+
+class _AdminPanelState extends State<AdminPanel> {
+  final school = TextEditingController();
+  final customerUser = TextEditingController();
+  final customerPass = TextEditingController();
+  String duration = '1 Month';
+  String generatedKey = '';
+
+  String generateKey() {
+    final name = school.text.trim();
+    if (name.isEmpty) return '';
+    final raw = '$name|$duration|IQRA2026';
+    return base64Url.encode(utf8.encode(raw)).replaceAll('=', '');
+  }
+
+  Future<void> saveCustomerLogin() async {
+    final p = await SharedPreferences.getInstance();
+    if (customerUser.text.trim().isEmpty || customerPass.text.isEmpty) return;
+    await p.setString('academy_customer_user', customerUser.text.trim());
+    await p.setString('academy_customer_pass', customerPass.text);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Customer login saved')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Admin Panel')),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Text('License Generator',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          TextField(controller: school,
+            decoration: const InputDecoration(labelText: 'School Name')),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: duration,
+            decoration: const InputDecoration(labelText: 'License Duration'),
+            items: ['1 Month', '3 Months', '1 Year', 'Lifetime']
+                .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                .toList(),
+            onChanged: (v) => setState(() => duration = v ?? '1 Month'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => setState(() => generatedKey = generateKey()),
+            child: const Text('Generate License Key'),
+          ),
+          if (generatedKey.isNotEmpty) ...[
+            SelectableText(generatedKey),
+            OutlinedButton(
+              onPressed: () {
+                // Long-press the key to copy it from the selectable text.
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Select and copy the key above')),
+                );
+              },
+              child: const Text('Copy key: select text above'),
+            ),
+          ],
+          const Divider(height: 35),
+          const Text('Customer Login Setup',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          TextField(controller: customerUser,
+            decoration: const InputDecoration(labelText: 'Customer Username')),
+          TextField(controller: customerPass, obscureText: true,
+            decoration: const InputDecoration(labelText: 'Customer Password')),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: saveCustomerLogin,
+            child: const Text('Save Customer Login'),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class AcademyHome extends StatefulWidget {
-  const AcademyHome({super.key});
+  final String schoolName;
+  const AcademyHome({super.key, required this.schoolName});
 
   @override
   State<AcademyHome> createState() => _AcademyHomeState();
 }
 
 class _AcademyHomeState extends State<AcademyHome> {
-  static const navy = Color(0xFF073B70);
-  static const blue = Color(0xFF0756B5);
-
-  final picker = ImagePicker();
-
-  int tab = 0;
-  bool loading = true;
-
-  String schoolName = 'New Iqra Children Academy';
-  String schoolAddress = 'Charsadda Road, Peshawar';
-  String principal = 'Principal';
+  int page = 0;
+  int logoTaps = 0;
 
   List<Map<String, dynamic>> students = [];
   List<Map<String, dynamic>> fees = [];
   List<Map<String, dynamic>> attendance = [];
   List<Map<String, dynamic>> marks = [];
+
+  String selectedClass = 'First';
 
   @override
   void initState() {
@@ -65,1875 +441,818 @@ class _AcademyHomeState extends State<AcademyHome> {
     loadData();
   }
 
-  String val(Map<String, dynamic> m, String k) =>
-      '${m[k] ?? ''}';
-
-  double amount(dynamic v) =>
-      double.tryParse('$v') ?? 0;
-
-  String money(double n) =>
-      'Rs. ${n.toStringAsFixed(0)}';
-
-  String dateText(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  String today() => dateText(DateTime.now());
-
-  List<Map<String, dynamic>> readList(
-    SharedPreferences p,
-    String key,
-  ) {
-    try {
-      final raw = p.getString(key);
-      if (raw == null) return [];
-
-      return List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map(
-          (e) => Map<String, dynamic>.from(e),
-        ),
-      );
-    } catch (_) {
-      return [];
-    }
-  }
-
   Future<void> loadData() async {
     final p = await SharedPreferences.getInstance();
 
-    if (!mounted) return;
+    List<Map<String, dynamic>> readList(String key) {
+      final raw = p.getString(key);
+      if (raw == null) return [];
+      try {
+        return List<Map<String, dynamic>>.from(
+          (jsonDecode(raw) as List).map(
+            (e) => Map<String, dynamic>.from(e),
+          ),
+        );
+      } catch (_) {
+        return [];
+      }
+    }
 
     setState(() {
-      students = readList(p, 'academy_students');
-      fees = readList(p, 'academy_fees');
-      attendance = readList(p, 'academy_attendance');
-      marks = readList(p, 'academy_marks');
-
-      schoolName =
-          p.getString('academy_name') ?? schoolName;
-      schoolAddress =
-          p.getString('academy_address') ?? schoolAddress;
-      principal =
-          p.getString('academy_principal') ?? principal;
-
-      loading = false;
+      students = readList('academy_students');
+      fees = readList('academy_fees');
+      attendance = readList('academy_attendance');
+      marks = readList('academy_marks');
     });
   }
 
   Future<void> saveData() async {
     final p = await SharedPreferences.getInstance();
-
-    await p.setString(
-      'academy_students',
-      jsonEncode(students),
-    );
-
-    await p.setString(
-      'academy_fees',
-      jsonEncode(fees),
-    );
-
-    await p.setString(
-      'academy_attendance',
-      jsonEncode(attendance),
-    );
-
-    await p.setString(
-      'academy_marks',
-      jsonEncode(marks),
-    );
-
-    await p.setString('academy_name', schoolName);
-    await p.setString('academy_address', schoolAddress);
-    await p.setString('academy_principal', principal);
+    await p.setString('academy_students', jsonEncode(students));
+    await p.setString('academy_fees', jsonEncode(fees));
+    await p.setString('academy_attendance', jsonEncode(attendance));
+    await p.setString('academy_marks', jsonEncode(marks));
   }
 
-  void toast(String s) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(s)),
-    );
+  List<Map<String, dynamic>> get classStudents {
+    return students.where((s) => s['class'] == selectedClass).toList();
   }
 
-  Future<String?> pickDate(String initial) async {
-    final start =
-        DateTime.tryParse(initial) ?? DateTime.now();
-
-    final d = await showDatePicker(
-      context: context,
-      initialDate: start,
-      firstDate: DateTime(1950),
-      lastDate: DateTime(2100),
-    );
-
-    return d == null ? null : dateText(d);
+  double get totalFees {
+    return fees.fold(0.0, (sum, f) =>
+      sum + (double.tryParse('${f['amount']}') ?? 0));
   }
 
-  Future<String?> choosePhoto() async {
-    final source =
-        await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (c) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo / Camera'),
-              onTap: () =>
-                  Navigator.pop(c, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () =>
-                  Navigator.pop(c, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (source == null) return null;
-
-    try {
-      final file = await picker.pickImage(
-        source: source,
-        imageQuality: 70,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (file == null) return null;
-
-      return base64Encode(await file.readAsBytes());
-    } catch (e) {
-      toast('Photo selection failed: $e');
-      return null;
-    }
-  }
-
-  Widget studentPhoto(
-    String encoded, {
-    double size = 58,
-  }) {
-    Uint8List? bytes;
-
-    try {
-      if (encoded.isNotEmpty) {
-        bytes = base64Decode(encoded);
-      }
-    } catch (_) {}
-
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: const Color(0xFFE2EAF5),
-      backgroundImage:
-          bytes == null ? null : MemoryImage(bytes),
-      child: bytes == null
-          ? Icon(
-              Icons.person,
-              size: size * .55,
-              color: blue,
-            )
-          : null,
-    );
-  }
-
-  double paid(Map<String, dynamic> s) =>
-      fees
-          .where(
-            (f) => val(f, 'studentId') == val(s, 'id'),
-          )
-          .fold<double>(
-            0,
-            (a, f) => a + amount(f['amount']),
-          );
-
-  double due(Map<String, dynamic> s) =>
-      (amount(s['totalFee']) - paid(s))
-          .clamp(0, double.infinity)
-          .toDouble();
-
-  double get received =>
-      fees.fold<double>(
-        0,
-        (a, f) => a + amount(f['amount']),
-      );
-
-  double get outstanding =>
-      students.fold<double>(
-        0,
-        (a, s) => a + due(s),
-      );
-
-  int get present => attendance
-      .where(
-        (a) =>
-            val(a, 'date') == today() &&
-            val(a, 'status') == 'Present',
-      )
-      .length;
-
-  int get absent => attendance
-      .where(
-        (a) =>
-            val(a, 'date') == today() &&
-            val(a, 'status') == 'Absent',
-      )
-      .length;
-
-  Future<void> settings() async {
-    final n = TextEditingController(text: schoolName);
-    final a = TextEditingController(text: schoolAddress);
-    final pr = TextEditingController(text: principal);
-
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('School Settings'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              field(n, 'School Name'),
-              field(a, 'Address'),
-              field(pr, 'Principal Name'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (n.text.trim().isEmpty) return;
-
-              setState(() {
-                schoolName = n.text.trim();
-                schoolAddress = a.text.trim();
-                principal = pr.text.trim();
-              });
-
-              await saveData();
-
-              if (c.mounted) Navigator.pop(c);
-              toast('Settings saved');
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    n.dispose();
-    a.dispose();
-    pr.dispose();
-  }
-
-  Widget field(
-    TextEditingController c,
-    String label, {
-    TextInputType type = TextInputType.text,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextField(
-          controller: c,
-          keyboardType: type,
-          decoration: InputDecoration(
-            labelText: label,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-      );
-
-  Widget dateField(
-    TextEditingController c,
-    String label,
-  ) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextField(
-          controller: c,
-          readOnly: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            suffixIcon: Icon(Icons.calendar_month),
-          ).copyWith(labelText: label),
-          onTap: () async {
-            final d = await pickDate(c.text);
-            if (d != null) c.text = d;
+  void openStudentForm({Map<String, dynamic>? oldStudent}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudentFormPage(
+          oldStudent: oldStudent,
+          onSave: (student) async {
+            setState(() {
+              if (oldStudent == null) {
+                students.add(student);
+              } else {
+                final index = students.indexWhere(
+                  (s) => s['id'] == oldStudent['id'],
+                );
+                if (index >= 0) students[index] = student;
+              }
+            });
+            await saveData();
           },
         ),
-      );
-    Future<void> studentForm({
-    Map<String, dynamic>? old,
-  }) async {
-    final s = old ?? <String, dynamic>{};
-
-    final name = TextEditingController(text: val(s, 'name'));
-    final father = TextEditingController(text: val(s, 'father'));
-    final roll = TextEditingController(text: val(s, 'roll'));
-    final cls = TextEditingController(text: val(s, 'class'));
-    final phone = TextEditingController(text: val(s, 'phone'));
-    final address = TextEditingController(text: val(s, 'address'));
-    final dob = TextEditingController(text: val(s, 'dob'));
-    final admission = TextEditingController(
-      text: val(s, 'admissionDate').isEmpty
-          ? today()
-          : val(s, 'admissionDate'),
-    );
-    final fee = TextEditingController(
-      text: val(s, 'totalFee').isEmpty
-          ? '0'
-          : val(s, 'totalFee'),
-    );
-
-    String image = val(s, 'photo');
-
-    await showDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, refresh) => AlertDialog(
-          title: Text(
-            old == null ? 'Student Registration' : 'Edit Student',
-          ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  studentPhoto(image, size: 100),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final p = await choosePhoto();
-                      if (p != null) refresh(() => image = p);
-                    },
-                    icon: const Icon(Icons.add_a_photo),
-                    label: const Text('Camera / Gallery Photo'),
-                  ),
-                  if (image.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => refresh(() => image = ''),
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Remove Photo'),
-                    ),
-                  const SizedBox(height: 12),
-                  field(name, 'Student Name *'),
-                  field(father, 'Father Name'),
-                  field(roll, 'Roll Number'),
-                  field(cls, 'Class'),
-                  field(
-                    phone,
-                    'Phone Number',
-                    type: TextInputType.phone,
-                  ),
-                  field(address, 'Address'),
-                  dateField(dob, 'Date of Birth'),
-                  dateField(admission, 'Admission Date'),
-                  field(
-                    fee,
-                    'Annual Fee (Rs.)',
-                    type: TextInputType.number,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) {
-                  toast('Student name required');
-                  return;
-                }
-
-                final item = <String, dynamic>{
-                  'id': old == null
-                      ? DateTime.now()
-                          .microsecondsSinceEpoch
-                          .toString()
-                      : val(s, 'id'),
-                  'name': name.text.trim(),
-                  'father': father.text.trim(),
-                  'roll': roll.text.trim(),
-                  'class': cls.text.trim(),
-                  'phone': phone.text.trim(),
-                  'address': address.text.trim(),
-                  'dob': dob.text,
-                  'admissionDate': admission.text,
-                  'totalFee': amount(fee.text),
-                  'photo': image,
-                };
-
-                setState(() {
-                  if (old == null) {
-                    students.add(item);
-                  } else {
-                    final i = students.indexWhere(
-                      (x) => val(x, 'id') == val(s, 'id'),
-                    );
-                    if (i >= 0) students[i] = item;
-                  }
-                });
-
-                await saveData();
-
-                if (c.mounted) Navigator.pop(c);
-                toast('Student saved');
-              },
-              child: const Text('Save Student'),
-            ),
-          ],
-        ),
       ),
     );
-
-    for (final x in [
-      name, father, roll, cls, phone,
-      address, dob, admission, fee,
-    ]) {
-      x.dispose();
-    }
   }
 
-  Future<void> deleteStudent(
-    Map<String, dynamic> s,
-  ) async {
-    final ok = await showDialog<bool>(
+  void deleteStudent(Map<String, dynamic> student) async {
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete student?'),
-        content: Text(val(s, 'name')),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Student?'),
+        content: Text('Delete ${student['name']}?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(c, false),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(c, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
 
-    if (ok == true) {
+    if (confirm == true) {
       setState(() {
-        students.removeWhere(
-          (x) => val(x, 'id') == val(s, 'id'),
-        );
+        students.removeWhere((s) => s['id'] == student['id']);
+        fees.removeWhere((f) => f['studentId'] == student['id']);
+        attendance.removeWhere((a) => a['studentId'] == student['id']);
+        marks.removeWhere((m) => m['studentId'] == student['id']);
       });
-
       await saveData();
-      toast('Deleted');
-    }
-  }
-
-  Future<void> collectFee(
-    Map<String, dynamic> s,
-  ) async {
-    final a = TextEditingController();
-    final desc = TextEditingController(text: 'Monthly Fee');
-    final date = TextEditingController(text: today());
-    final note = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Collect Fee - ${val(s, 'name')}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Total ${money(amount(s['totalFee']))} '
-                '| Paid ${money(paid(s))} '
-                '| Due ${money(due(s))}',
-              ),
-              field(
-                a,
-                'Received Amount',
-                type: TextInputType.number,
-              ),
-              field(desc, 'Fee Description'),
-              dateField(date, 'Payment Date'),
-              field(note, 'Remarks'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (amount(a.text) <= 0) {
-                toast('Enter valid amount');
-                return;
-              }
-
-              final f = <String, dynamic>{
-                'id': DateTime.now()
-                    .microsecondsSinceEpoch
-                    .toString(),
-                'studentId': val(s, 'id'),
-                'studentName': val(s, 'name'),
-                'roll': val(s, 'roll'),
-                'class': val(s, 'class'),
-                'amount': amount(a.text),
-                'month': desc.text,
-                'date': date.text,
-                'note': note.text,
-              };
-
-              setState(() => fees.add(f));
-              await saveData();
-
-              if (c.mounted) Navigator.pop(c);
-              await receipt(f);
-            },
-            child: const Text('Save & Print Receipt'),
-          ),
-        ],
-      ),
-    );
-
-    a.dispose();
-    desc.dispose();
-    date.dispose();
-    note.dispose();
-  }
-
-  Future<void> markAttendance(
-    Map<String, dynamic> s,
-    String status,
-    String date,
-  ) async {
-    final i = attendance.indexWhere(
-      (a) =>
-          val(a, 'studentId') == val(s, 'id') &&
-          val(a, 'date') == date,
-    );
-
-    final r = <String, dynamic>{
-      'studentId': val(s, 'id'),
-      'studentName': val(s, 'name'),
-      'roll': val(s, 'roll'),
-      'class': val(s, 'class'),
-      'date': date,
-      'status': status,
-    };
-
-    setState(() {
-      if (i < 0) {
-        attendance.add(r);
-      } else {
-        attendance[i] = r;
-      }
-    });
-
-    await saveData();
-    toast('$status saved');
-  }
-
-  Future<void> marksForm(
-    Map<String, dynamic> s,
-  ) async {
-    final exam = TextEditingController(
-      text: 'Annual Examination',
-    );
-    final subject = TextEditingController();
-    final total = TextEditingController(text: '100');
-    final obtained = TextEditingController();
-    final date = TextEditingController(text: today());
-
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Marks - ${val(s, 'name')}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              field(exam, 'Exam Name'),
-              field(subject, 'Subject'),
-              field(
-                total,
-                'Total Marks',
-                type: TextInputType.number,
-              ),
-              field(
-                obtained,
-                'Obtained Marks',
-                type: TextInputType.number,
-              ),
-              dateField(date, 'Exam Date'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final t = amount(total.text);
-              final o = amount(obtained.text);
-
-              if (subject.text.trim().isEmpty ||
-                  t <= 0 || o < 0 || o > t) {
-                toast('Check marks');
-                return;
-              }
-
-              setState(() {
-                marks.add({
-                  'studentId': val(s, 'id'),
-                  'studentName': val(s, 'name'),
-                  'roll': val(s, 'roll'),
-                  'class': val(s, 'class'),
-                  'exam': exam.text,
-                  'subject': subject.text,
-                  'total': t,
-                  'obtained': o,
-                  'date': date.text,
-                });
-              });
-
-              await saveData();
-
-              if (c.mounted) Navigator.pop(c);
-              toast('Marks saved');
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    exam.dispose();
-    subject.dispose();
-    total.dispose();
-    obtained.dispose();
-    date.dispose();
-  }
-
-  Future<void> designedPdf(
-    Map<String, dynamic> s,
-    String kind,
-  ) async {
-    final doc = pw.Document();
-
-    pw.MemoryImage? image;
-
-    try {
-      final raw = val(s, 'photo');
-      if (raw.isNotEmpty) {
-        image = pw.MemoryImage(base64Decode(raw));
-      }
-    } catch (_) {}
-
-    final sm = marks
-        .where(
-          (m) => val(m, 'studentId') == val(s, 'id'),
-        )
-        .toList();
-
-    final tm = sm.fold<double>(
-      0,
-      (a, m) => a + amount(m['total']),
-    );
-
-    final om = sm.fold<double>(
-      0,
-      (a, m) => a + amount(m['obtained']),
-    );
-
-    final pct = tm == 0 ? 0.0 : om / tm * 100;
-
-    final isId = kind == 'id';
-    final isDmc = kind == 'dmc';
-
-    final title = {
-      'id': 'STUDENT ID CARD',
-      'dmc': 'DETAILED MARKS CERTIFICATE',
-      'character': 'CHARACTER CERTIFICATE',
-      'leaving': 'SCHOOL LEAVING CERTIFICATE',
-      'fee': 'STUDENT FEE CARD',
-    }[kind] ?? 'STUDENT DOCUMENT';
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: isId
-            ? const PdfPageFormat(350, 230)
-            : PdfPageFormat.a4,
-        margin: pw.EdgeInsets.all(isId ? 10 : 35),
-        build: (ctx) => pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(
-              color: PdfColors.blue900,
-              width: isId ? 2 : 4,
-            ),
-          ),
-          padding: pw.EdgeInsets.all(isId ? 9 : 22),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              pw.Container(
-                color: PdfColors.blue900,
-                padding: const pw.EdgeInsets.all(10),
-                child: pw.Column(
-                  children: [
-                    pw.Text(
-                      schoolName,
-                      textAlign: pw.TextAlign.center,
-                      style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: isId ? 14 : 23,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.Text(
-                      schoolAddress,
-                      style: const pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 9,
-                      ),
-                    ),
-                    if (!isId)
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(top: 8),
-                        child: pw.Text(
-                          title,
-                          style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 16),
-
-              if (isId)
-                pw.Row(
-                  children: [
-                    if (image != null)
-                      pw.Container(
-                        width: 78,
-                        height: 90,
-                        child: pw.Image(
-                          image,
-                          fit: pw.BoxFit.cover,
-                        ),
-                      ),
-                    pw.SizedBox(width: 12),
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment:
-                            pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            val(s, 'name'),
-                            style: pw.TextStyle(
-                              fontSize: 15,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
-                          ),
-                          pw.Text('Father: ${val(s, 'father')}'),
-                          pw.Text('Roll: ${val(s, 'roll')}'),
-                          pw.Text('Class: ${val(s, 'class')}'),
-                          pw.Text('Phone: ${val(s, 'phone')}'),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              else if (isDmc) ...[
-                pw.Row(
-                  children: [
-                    if (image != null)
-                      pw.Container(
-                        width: 65,
-                        height: 75,
-                        child: pw.Image(
-                          image,
-                          fit: pw.BoxFit.cover,
-                        ),
-                      ),
-                    pw.SizedBox(width: 12),
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment:
-                            pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text('Student: ${val(s, 'name')}'),
-                          pw.Text('Father: ${val(s, 'father')}'),
-                          pw.Text(
-                            'Roll: ${val(s, 'roll')}    '
-                            'Class: ${val(s, 'class')}',
-                          ),
-                          pw.Text(
-                            'Exam: ${sm.isEmpty ? '-' : val(sm.first, 'exam')}',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 14),
-                pw.TableHelper.fromTextArray(
-                  headers: ['Subject', 'Total', 'Obtained'],
-                  data: sm.map((m) => [
-                    val(m, 'subject'),
-                    '${m['total']}',
-                    '${m['obtained']}',
-                  ]).toList(),
-                ),
-                pw.SizedBox(height: 12),
-                pw.Text(
-                  'Total: ${tm.toStringAsFixed(0)}    '
-                  'Obtained: ${om.toStringAsFixed(0)}    '
-                  'Percentage: ${pct.toStringAsFixed(2)}%',
-                ),
-                pw.Text(
-                  'Result: ${pct >= 40 ? 'PASS' : 'NEEDS IMPROVEMENT'}',
-                ),
-              ] else if (kind == 'fee') ...[
-                pw.Text('Student: ${val(s, 'name')}'),
-                pw.Text('Father: ${val(s, 'father')}'),
-                pw.Text(
-                  'Roll: ${val(s, 'roll')}    '
-                  'Class: ${val(s, 'class')}',
-                ),
-                pw.Text(
-                  'Annual Fee: ${money(amount(s['totalFee']))}',
-                ),
-                pw.Text('Received: ${money(paid(s))}'),
-                pw.Text('Outstanding: ${money(due(s))}'),
-                pw.SizedBox(height: 12),
-                pw.TableHelper.fromTextArray(
-                  headers: ['Date', 'Description', 'Amount'],
-                  data: fees
-                      .where(
-                        (f) =>
-                            val(f, 'studentId') == val(s, 'id'),
-                      )
-                      .map((f) => [
-                        val(f, 'date'),
-                        val(f, 'month'),
-                        money(amount(f['amount'])),
-                      ])
-                      .toList(),
-                ),
-              ] else ...[
-                pw.SizedBox(height: 28),
-                pw.Text(
-                  'This is to certify that',
-                  textAlign: pw.TextAlign.center,
-                ),
-                pw.SizedBox(height: 12),
-                pw.Text(
-                  val(s, 'name'),
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(
-                    fontSize: 23,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'Son/Daughter of ${val(s, 'father')}',
-                  textAlign: pw.TextAlign.center,
-                ),
-                pw.SizedBox(height: 16),
-                pw.Text(
-                  kind == 'character'
-                      ? 'has been a student of this institution. '
-                        'To the best of our knowledge, their character '
-                        'and conduct during the period of study has '
-                        'been satisfactory.'
-                      : 'was admitted to this institution on '
-                        '${val(s, 'admissionDate')} and studied in '
-                        'class ${val(s, 'class')}. This certificate '
-                        'is issued on request.',
-                  textAlign: pw.TextAlign.center,
-                ),
-                pw.SizedBox(height: 20),
-                pw.Text(
-                  'Issue Date: $today()',
-                  textAlign: pw.TextAlign.center,
-                ),
-              ],
-
-              pw.Spacer(),
-
-              pw.Row(
-                mainAxisAlignment:
-                    pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    children: [
-                      pw.Container(
-                        width: 120,
-                        height: 1,
-                        color: PdfColors.black,
-                      ),
-                      pw.Text('Class Teacher'),
-                    ],
-                  ),
-                  pw.Column(
-                    children: [
-                      pw.Container(
-                        width: 120,
-                        height: 1,
-                        color: PdfColors.black,
-                      ),
-                      pw.Text(principal),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-    );
-  }
-    Future<void> receipt(Map<String, dynamic> f) async {
-    final doc = pw.Document();
-
-    doc.addPage(
-      pw.Page(
-        build: (c) => pw.Container(
-          padding: const pw.EdgeInsets.all(25),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(
-              color: PdfColors.blue,
-              width: 3,
-            ),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              pw.Text(
-                schoolName,
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  fontSize: 22,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text(
-                schoolAddress,
-                textAlign: pw.TextAlign.center,
-              ),
-              pw.SizedBox(height: 22),
-              pw.Text(
-                'FEE PAYMENT RECEIPT',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Divider(),
-              pw.Text('Date: ${val(f, 'date')}'),
-              pw.Text('Student: ${val(f, 'studentName')}'),
-              pw.Text(
-                'Roll: ${val(f, 'roll')}   '
-                'Class: ${val(f, 'class')}',
-              ),
-              pw.Text('Description: ${val(f, 'month')}'),
-              pw.SizedBox(height: 15),
-              pw.Text(
-                'Received: ${money(amount(f['amount']))}',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Spacer(),
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Text('Cashier Signature'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-    );
-  }
-
-  Future<void> reportPdf(
-    String title,
-    List<List<String>> rows,
-  ) async {
-    final doc = pw.Document();
-
-    doc.addPage(
-      pw.MultiPage(
-        build: (c) => [
-          pw.Center(
-            child: pw.Text(
-              schoolName,
-              style: pw.TextStyle(
-                fontSize: 22,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-          pw.Center(child: pw.Text(schoolAddress)),
-          pw.SizedBox(height: 12),
-          pw.Center(
-            child: pw.Text(
-              title,
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 15),
-          pw.TableHelper.fromTextArray(
-            headers: rows.first,
-            data: rows.skip(1).toList(),
-          ),
-          pw.SizedBox(height: 18),
-          pw.Text('Generated: ${today()}'),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-    );
-  }
-
-  Future<void> selectStudent(
-    String title,
-    Future<void> Function(Map<String, dynamic>) action,
-  ) async {
-    if (students.isEmpty) {
-      toast('Add students first');
-      return;
-    }
-
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(title),
-        content: SizedBox(
-          width: 400,
-          height: 350,
-          child: ListView(
-            children: students.map((s) {
-              return ListTile(
-                leading: studentPhoto(
-                  val(s, 'photo'),
-                  size: 42,
-                ),
-                title: Text(val(s, 'name')),
-                subtitle: Text(
-                  'Roll ${val(s, 'roll')} • ${val(s, 'class')}',
-                ),
-                onTap: () {
-                  Navigator.pop(c);
-                  action(s);
-                },
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget stat(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) =>
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(13),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      );
-
-  Widget actionChip(
-    String text,
-    IconData icon,
-    VoidCallback onTap,
-  ) =>
-      ActionChip(
-        avatar: Icon(icon, size: 18),
-        label: Text(text),
-        onPressed: onTap,
-      );
-
-  Widget dashboard() => ListView(
-    padding: const EdgeInsets.all(14),
-    children: [
-      Text(
-        'Welcome to $schoolName',
-        style: const TextStyle(
-          fontSize: 21,
-          fontWeight: FontWeight.bold,
-          color: navy,
-        ),
-      ),
-      Text(schoolAddress),
-      const SizedBox(height: 12),
-
-      GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        childAspectRatio: 1.5,
-        children: [
-          stat(
-            'Total Students',
-            '${students.length}',
-            Icons.people,
-            Colors.blue,
-          ),
-          stat(
-            'Present Today',
-            '$present',
-            Icons.check_circle,
-            Colors.green,
-          ),
-          stat(
-            'Fee Received',
-            money(received),
-            Icons.payments,
-            Colors.purple,
-          ),
-          stat(
-            'Outstanding',
-            money(outstanding),
-            Icons.money_off,
-            Colors.red,
-          ),
-        ],
-      ),
-
-      const SizedBox(height: 12),
-      const Text(
-        'Quick Actions',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          actionChip(
-            'Add Student',
-            Icons.person_add,
-            () => studentForm(),
-          ),
-          actionChip(
-            'Students',
-            Icons.people,
-            () => setState(() => tab = 1),
-          ),
-          actionChip(
-            'Attendance',
-            Icons.fact_check,
-            () => setState(() => tab = 2),
-          ),
-          actionChip(
-            'Fees',
-            Icons.payments,
-            () => setState(() => tab = 3),
-          ),
-          actionChip(
-            'Reports & Cards',
-            Icons.picture_as_pdf,
-            () => setState(() => tab = 4),
-          ),
-          actionChip(
-            'Settings',
-            Icons.settings,
-            settings,
-          ),
-        ],
-      ),
-
-      const SizedBox(height: 12),
-      const Text(
-        'Recent Fee Payments',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 17,
-        ),
-      ),
-
-      ...fees.reversed.take(5).map(
-        (f) => Card(
-          child: ListTile(
-            leading: const Icon(Icons.receipt),
-            title: Text(val(f, 'studentName')),
-            subtitle: Text(
-              '${val(f, 'date')} • ${val(f, 'month')}',
-            ),
-            trailing: Text(
-              money(amount(f['amount'])),
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
-
-  Widget studentsPage() => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Students (${students.length})',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: () => studentForm(),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Student'),
-            ),
-          ],
-        ),
-      ),
-
-      Expanded(
-        child: students.isEmpty
-            ? const Center(
-                child: Text('No students registered'),
-              )
-            : ListView.builder(
-                itemCount: students.length,
-                itemBuilder: (c, i) {
-                  final s = students[i];
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    child: ListTile(
-                      leading: studentPhoto(
-                        val(s, 'photo'),
-                      ),
-                      title: Text(val(s, 'name')),
-                      subtitle: Text(
-                        'Roll ${val(s, 'roll')} • '
-                        'Class ${val(s, 'class')}',
-                      ),
-                      onTap: () => studentDetails(s),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (v) {
-                          if (v == 'edit') {
-                            studentForm(old: s);
-                          }
-                          if (v == 'delete') {
-                            deleteStudent(s);
-                          }
-                          if (v == 'fee') {
-                            collectFee(s);
-                          }
-                          if (v == 'marks') {
-                            marksForm(s);
-                          }
-                          if (v == 'id') {
-                            designedPdf(s, 'id');
-                          }
-                          if (v == 'dmc') {
-                            designedPdf(s, 'dmc');
-                          }
-                          if (v == 'character') {
-                            designedPdf(s, 'character');
-                          }
-                          if (v == 'leaving') {
-                            designedPdf(s, 'leaving');
-                          }
-                          if (v == 'feecard') {
-                            designedPdf(s, 'fee');
-                          }
-                        },
-                        itemBuilder: (c) => const [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit Student'),
-                          ),
-                          PopupMenuItem(
-                            value: 'fee',
-                            child: Text('Collect Fee'),
-                          ),
-                          PopupMenuItem(
-                            value: 'marks',
-                            child: Text('Add Exam Marks'),
-                          ),
-                          PopupMenuItem(
-                            value: 'id',
-                            child: Text('Student ID Card'),
-                          ),
-                          PopupMenuItem(
-                            value: 'dmc',
-                            child: Text('DMC / Result Card'),
-                          ),
-                          PopupMenuItem(
-                            value: 'character',
-                            child: Text('Character Certificate'),
-                          ),
-                          PopupMenuItem(
-                            value: 'leaving',
-                            child: Text('Leaving Certificate'),
-                          ),
-                          PopupMenuItem(
-                            value: 'feecard',
-                            child: Text('Fee Card'),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-      ),
-    ],
-  );
-
-  Future<void> studentDetails(
-    Map<String, dynamic> s,
-  ) async {
-    await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Student Profile'),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                studentPhoto(
-                  val(s, 'photo'),
-                  size: 100,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  val(s, 'name'),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Divider(),
-                info('Father', val(s, 'father')),
-                info('Roll', val(s, 'roll')),
-                info('Class', val(s, 'class')),
-                info('Phone', val(s, 'phone')),
-                info('DOB', val(s, 'dob')),
-                info('Admission', val(s, 'admissionDate')),
-                info(
-                  'Annual Fee',
-                  money(amount(s['totalFee'])),
-                ),
-                info('Paid', money(paid(s))),
-                info('Due', money(due(s))),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Close'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(c);
-              studentForm(old: s);
-            },
-            child: const Text('Edit'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget info(String k, String v) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            k,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        Expanded(child: Text(v)),
-      ],
-    ),
-  );
-
-  Widget attendancePage() {
-    final date = TextEditingController(text: today());
-
-    return StatefulBuilder(
-      builder: (context, refresh) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Attendance',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
-                    final d = await pickDate(date.text);
-                    if (d != null) {
-                      refresh(() => date.text = d);
-                    }
-                  },
-                  icon: const Icon(Icons.calendar_month),
-                  label: Text(date.text),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: ListView.builder(
-              itemCount: students.length,
-              itemBuilder: (c, i) {
-                final s = students[i];
-
-                final rec = attendance.where(
-                  (a) =>
-                      val(a, 'studentId') == val(s, 'id') &&
-                      val(a, 'date') == date.text,
-                );
-
-                final status = rec.isEmpty
-                    ? 'Not Marked'
-                    : val(rec.first, 'status');
-
-                return Card(
-                  child: ListTile(
-                    leading: studentPhoto(
-                      val(s, 'photo'),
-                      size: 44,
-                    ),
-                    title: Text(val(s, 'name')),
-                    subtitle: Text(
-                      '${val(s, 'roll')} • $status',
-                    ),
-                    trailing: Wrap(
-                      spacing: 0,
-                      children: [
-                        IconButton(
-                          onPressed: () async {
-                            await markAttendance(
-                              s,
-                              'Present',
-                              date.text,
-                            );
-                            refresh(() {});
-                          },
-                          icon: const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () async {
-                            await markAttendance(
-                              s,
-                              'Absent',
-                              date.text,
-                            );
-                            refresh(() {});
-                          },
-                          icon: const Icon(
-                            Icons.cancel,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget feesPage() => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            Expanded(
-              child: stat(
-                'Received',
-                money(received),
-                Icons.payments,
-                Colors.green,
-              ),
-            ),
-            Expanded(
-              child: stat(
-                'Due',
-                money(outstanding),
-                Icons.money_off,
-                Colors.red,
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      Expanded(
-        child: ListView.builder(
-          itemCount: students.length,
-          itemBuilder: (c, i) {
-            final s = students[i];
-
-            return Card(
-              child: ListTile(
-                leading: studentPhoto(
-                  val(s, 'photo'),
-                  size: 44,
-                ),
-                title: Text(val(s, 'name')),
-                subtitle: Text(
-                  'Paid ${money(paid(s))} • '
-                  'Due ${money(due(s))}',
-                ),
-                trailing: IconButton(
-                  onPressed: () => collectFee(s),
-                  icon: const Icon(
-                    Icons.add_circle,
-                    color: Colors.green,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
-
-  Widget reportTile(
-    String title,
-    IconData icon,
-    VoidCallback fn,
-  ) =>
-      Card(
-        child: ListTile(
-          leading: Icon(icon, color: blue),
-          title: Text(title),
-          trailing: const Icon(Icons.picture_as_pdf),
-          onTap: fn,
-        ),
-      );
-
-  Widget reportsPage() => ListView(
-    padding: const EdgeInsets.all(12),
-    children: [
-      const Text(
-        'Reports, Cards & Certificates',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-
-      reportTile(
-        'Student List Report',
-        Icons.groups,
-        () => reportPdf('STUDENT LIST', [
-          ['Name', 'Father', 'Roll', 'Class', 'Phone'],
-          ...students.map(
-            (s) => [
-              val(s, 'name'),
-              val(s, 'father'),
-              val(s, 'roll'),
-              val(s, 'class'),
-              val(s, 'phone'),
-            ],
-          ),
-        ]),
-      ),
-
-      reportTile(
-        'Fee Collection Report',
-        Icons.payments,
-        () => reportPdf('FEE COLLECTION', [
-          ['Date', 'Student', 'Month', 'Amount'],
-          ...fees.map(
-            (f) => [
-              val(f, 'date'),
-              val(f, 'studentName'),
-              val(f, 'month'),
-              money(amount(f['amount'])),
-            ],
-          ),
-        ]),
-      ),
-
-      reportTile(
-        'Attendance Report',
-        Icons.fact_check,
-        () => reportPdf('ATTENDANCE', [
-          ['Date', 'Student', 'Roll', 'Class', 'Status'],
-          ...attendance.map(
-            (a) => [
-              val(a, 'date'),
-              val(a, 'studentName'),
-              val(a, 'roll'),
-              val(a, 'class'),
-              val(a, 'status'),
-            ],
-          ),
-        ]),
-      ),
-
-      reportTile(
-        'Student ID Card - Designed',
-        Icons.badge,
-        () => selectStudent(
-          'Select Student for ID Card',
-          (s) => designedPdf(s, 'id'),
-        ),
-      ),
-
-      reportTile(
-        'DMC / Result Card - Designed',
-        Icons.school,
-        () => selectStudent(
-          'Select Student for DMC',
-          (s) => designedPdf(s, 'dmc'),
-        ),
-      ),
-
-      reportTile(
-        'Character Certificate',
-        Icons.verified,
-        () => selectStudent(
-          'Select Student',
-          (s) => designedPdf(s, 'character'),
-        ),
-      ),
-
-      reportTile(
-        'School Leaving Certificate',
-        Icons.description,
-        () => selectStudent(
-          'Select Student',
-          (s) => designedPdf(s, 'leaving'),
-        ),
-      ),
-
-      reportTile(
-        'Student Fee Card',
-        Icons.credit_card,
-        () => selectStudent(
-          'Select Student',
-          (s) => designedPdf(s, 'fee'),
-        ),
-      ),
-
-      reportTile(
-        'Add / Update Exam Marks',
-        Icons.edit_note,
-        () => selectStudent(
-          'Select Student',
-          marksForm,
-        ),
-      ),
-    ],
-  );
-
-  Widget settingsPage() => ListView(
-    padding: const EdgeInsets.all(12),
-    children: [
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.settings),
-          title: Text(schoolName),
-          subtitle: Text(schoolAddress),
-          trailing: const Icon(Icons.edit),
-          onTap: settings,
-        ),
-      ),
-    ],
-  );
-
-  Widget currentPage() {
-    switch (tab) {
-      case 0:
-        return dashboard();
-      case 1:
-        return studentsPage();
-      case 2:
-        return attendancePage();
-      case 3:
-        return feesPage();
-      case 4:
-        return reportsPage();
-      default:
-        return dashboard();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
+    final titles = ['Dashboard', 'Students', 'Fees', 'Attendance', 'Exams'];
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              schoolName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              [
-                'Dashboard',
-                'Students',
-                'Attendance',
-                'Fees',
-                'Reports',
-              ][tab],
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
+        title: GestureDetector(
+          onTap: () {
+            logoTaps++;
+            if (logoTaps >= 5) {
+              logoTaps = 0;
+              Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AdminLoginPage()));
+            }
+          },
+          child: Text(widget.schoolName),
         ),
         actions: [
           IconButton(
-            onPressed: settings,
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final p = await SharedPreferences.getInstance();
+              await p.setBool('academy_logged_in', false);
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const StartPage()),
+                (_) => false,
+              );
+            },
           ),
         ],
       ),
-
-      body: currentPage(),
-
-      floatingActionButton: tab == 1
-          ? FloatingActionButton(
-              onPressed: () => studentForm(),
-              child: const Icon(Icons.person_add),
-            )
-          : null,
-
+      body: IndexedStack(
+        index: page,
+        children: [
+          dashboardPage(),
+          studentsPage(),
+          feesPage(),
+          attendancePage(),
+          examsPage(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (i) {
-          setState(() => tab = i);
-        },
+        selectedIndex: page,
+        onDestinationSelected: (v) => setState(() => page = v),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'Home',
+          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.people), label: 'Students'),
+          NavigationDestination(icon: Icon(Icons.payments), label: 'Fees'),
+          NavigationDestination(icon: Icon(Icons.fact_check), label: 'Attendance'),
+          NavigationDestination(icon: Icon(Icons.menu_book), label: 'Exams'),
+        ],
+      ),
+    );
+  }
+
+  Widget dashboardPage() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Welcome to ${widget.schoolName}',
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            dashboardCard('Total Students', '${students.length}', Icons.people),
+            dashboardCard('Total Fees Received', 'Rs. ${totalFees.toStringAsFixed(0)}', Icons.payments),
+            dashboardCard('Classes', '10', Icons.class_),
+            dashboardCard('Today Attendance', '${attendance.length}', Icons.fact_check),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const Text('Quick Actions',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: () => openStudentForm(),
+          icon: const Icon(Icons.person_add),
+          label: const Text('Add New Student'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => setState(() => page = 1),
+          icon: const Icon(Icons.people),
+          label: const Text('View Students'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => setState(() => page = 2),
+          icon: const Icon(Icons.payments),
+          label: const Text('Collect Fee'),
+        ),
+      ],
+    );
+  }
+
+  Widget dashboardCard(String title, String value, IconData icon) {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width / 2 - 24,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 30, color: Colors.blue),
+              const SizedBox(height: 8),
+              Text(title),
+              const SizedBox(height: 5),
+              Text(value,
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            label: 'Students',
+        ),
+      ),
+    );
+  }
+
+  Widget studentsPage() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: selectedClass,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Class',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: classes.map((c) =>
+                    DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) => setState(() => selectedClass = v ?? 'First'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filled(
+                onPressed: () => openStudentForm(),
+                icon: const Icon(Icons.add),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.fact_check_outlined),
-            label: 'Attendance',
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Text(
+            '$selectedClass Class — ${classStudents.length} Students',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            label: 'Fees',
+        ),
+        Expanded(
+          child: classStudents.isEmpty
+              ? const Center(child: Text('No students in this class'))
+              : ListView.builder(
+                  itemCount: classStudents.length,
+                  itemBuilder: (context, index) {
+                    final s = classStudents[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text('${s['roll'] ?? ''}'),
+                        ),
+                        title: Text('${s['name'] ?? ''}'),
+                        subtitle: Text(
+                          'Father: ${s['father'] ?? ''}\n'
+                          'Roll: ${s['roll'] ?? ''} | Class: ${s['class'] ?? ''}',
+                        ),
+                        isThreeLine: true,
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (v) {
+                            if (v == 'edit') openStudentForm(oldStudent: s);
+                            if (v == 'delete') deleteStudent(s);
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'edit', child: Text('Edit')),
+                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget feesPage() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Total Received: Rs. ${totalFees.toStringAsFixed(0)}',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => showFeeForm(),
+          icon: const Icon(Icons.add),
+          label: const Text('Collect Student Fee'),
+        ),
+        ...fees.map((f) => Card(
+          child: ListTile(
+            title: Text('${f['studentName'] ?? ''}'),
+            subtitle: Text(
+              'Class: ${f['class'] ?? ''} | Month: ${f['month'] ?? ''}'),
+            trailing: Text('Rs. ${f['amount'] ?? 0}'),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: 'Reports',
+        )),
+      ],
+    );
+  }
+
+  void showFeeForm() {
+    if (students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a student first')),
+      );
+      return;
+    }
+
+    Map<String, dynamic> selected = students.first;
+    final amount = TextEditingController();
+    final month = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Collect Fee'),
+        content: StatefulBuilder(
+          builder: (ctx, setDialog) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  value: selected,
+                  decoration: const InputDecoration(labelText: 'Student'),
+                  items: students.map((s) => DropdownMenuItem(
+                    value: s,
+                    child: Text('${s['name']} (${s['class']})'),
+                  )).toList(),
+                  onChanged: (v) {
+                    if (v != null) setDialog(() => selected = v);
+                  },
+                ),
+                TextField(
+                  controller: month,
+                  decoration: const InputDecoration(labelText: 'Month'),
+                ),
+                TextField(
+                  controller: amount,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Amount Rs.'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final value = double.tryParse(amount.text);
+              if (value == null || value <= 0) return;
+
+              setState(() {
+                fees.add({
+                  'studentId': selected['id'],
+                  'studentName': selected['name'],
+                  'roll': selected['roll'],
+                  'class': selected['class'],
+                  'amount': value,
+                  'month': month.text.trim(),
+                  'date': DateTime.now().toIso8601String(),
+                });
+              });
+
+              await saveData();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Save Fee'),
           ),
         ],
       ),
+    );
+  }
+
+  Widget attendancePage() {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        const Text('Class-wise Attendance',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        DropdownButtonFormField<String>(
+          value: selectedClass,
+          decoration: const InputDecoration(labelText: 'Select Class'),
+          items: classes.map((c) =>
+            DropdownMenuItem(value: c, child: Text(c))).toList(),
+          onChanged: (v) => setState(() => selectedClass = v ?? 'First'),
+        ),
+        ...classStudents.map((s) => Card(
+          child: ListTile(
+            title: Text('${s['name']}'),
+            subtitle: Text('Roll: ${s['roll']}'),
+            trailing: FilledButton(
+              onPressed: () async {
+                final today = DateTime.now().toIso8601String().substring(0, 10);
+                setState(() {
+                  attendance.removeWhere((a) =>
+                    a['studentId'] == s['id'] && a['date'] == today);
+                  attendance.add({
+                    'studentId': s['id'],
+                    'studentName': s['name'],
+                    'class': s['class'],
+                    'date': today,
+                    'status': 'Present',
+                  });
+                });
+                await saveData();
+              },
+              child: const Text('Present'),
+            ),
+          ),
+        )),
+      ],
+    );
+  }
+
+  Widget examsPage() {
+    return MarksPage(
+      students: students,
+      marks: marks,
+      onSave: (record) async {
+        setState(() => marks.add(record));
+        await saveData();
+      },
+    );
+  }
+}
+
+class StudentFormPage extends StatefulWidget {
+  final Map<String, dynamic>? oldStudent;
+  final ValueChanged<Map<String, dynamic>> onSave;
+
+  const StudentFormPage({
+    super.key,
+    this.oldStudent,
+    required this.onSave,
+  });
+
+  @override
+  State<StudentFormPage> createState() => _StudentFormPageState();
+}
+
+class _StudentFormPageState extends State<StudentFormPage> {
+  final name = TextEditingController();
+  final father = TextEditingController();
+  final roll = TextEditingController();
+  final phone = TextEditingController();
+  final address = TextEditingController();
+  final totalFee = TextEditingController();
+
+  String studentClass = 'First';
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.oldStudent;
+    if (s != null) {
+      name.text = '${s['name'] ?? ''}';
+      father.text = '${s['father'] ?? ''}';
+      roll.text = '${s['roll'] ?? ''}';
+      phone.text = '${s['phone'] ?? ''}';
+      address.text = '${s['address'] ?? ''}';
+      totalFee.text = '${s['totalFee'] ?? ''}';
+      studentClass = classes.contains(s['class']) ? s['class'] : 'First';
+    }
+  }
+
+  Widget field(String label, TextEditingController c,
+      {TextInputType type = TextInputType.text}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: c,
+        keyboardType: type,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  void save() {
+    if (name.text.trim().isEmpty || roll.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter student name and roll number')),
+      );
+      return;
+    }
+
+    final old = widget.oldStudent;
+    widget.onSave({
+      'id': old?['id'] ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      'name': name.text.trim(),
+      'father': father.text.trim(),
+      'roll': roll.text.trim(),
+      'class': studentClass,
+      'phone': phone.text.trim(),
+      'address': address.text.trim(),
+      'totalFee': double.tryParse(totalFee.text) ?? 0,
+      'photo': old?['photo'] ?? '',
+      'admissionDate': old?['admissionDate'] ??
+          DateTime.now().toIso8601String(),
+    });
+
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(
+        widget.oldStudent == null ? 'Add Student' : 'Edit Student')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          field('Student Name', name),
+          field('Father Name', father),
+          field('Roll Number', roll, type: TextInputType.number),
+          DropdownButtonFormField<String>(
+            value: studentClass,
+            decoration: const InputDecoration(
+              labelText: 'Class',
+              border: OutlineInputBorder(),
+            ),
+            items: classes.map((c) =>
+              DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (v) => setState(() => studentClass = v ?? 'First'),
+          ),
+          const SizedBox(height: 12),
+          field('Phone Number', phone, type: TextInputType.phone),
+          field('Address', address),
+          field('Total Fee Rs.', totalFee, type: TextInputType.number),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: save,
+            icon: const Icon(Icons.save),
+            label: const Text('Save Student'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class MarksPage extends StatefulWidget {
+  final List<Map<String, dynamic>> students;
+  final List<Map<String, dynamic>> marks;
+  final Future<void> Function(Map<String, dynamic>) onSave;
+
+  const MarksPage({
+    super.key,
+    required this.students,
+    required this.marks,
+    required this.onSave,
+  });
+
+  @override
+  State<MarksPage> createState() => _MarksPageState();
+}
+
+class _MarksPageState extends State<MarksPage> {
+  String selectedClass = 'First';
+  String selectedSubject = 'English';
+
+  Map<String, dynamic>? selectedStudent;
+
+  final examController = TextEditingController();
+  final totalController = TextEditingController(text: '100');
+  final obtainedController = TextEditingController();
+
+  List<Map<String, dynamic>> get classStudents {
+    return widget.students
+        .where((s) => s['class'] == selectedClass)
+        .toList();
+  }
+
+  double get percentage {
+    final total = double.tryParse(totalController.text) ?? 0;
+    final obtained = double.tryParse(obtainedController.text) ?? 0;
+
+    if (total <= 0) return 0;
+    return (obtained / total) * 100;
+  }
+
+  String get result {
+    final total = double.tryParse(totalController.text) ?? 0;
+    final obtained = double.tryParse(obtainedController.text) ?? 0;
+
+    if (total <= 0 || obtained < 0 || obtained > total) {
+      return 'Invalid Marks';
+    }
+
+    return percentage >= 33 ? 'Pass' : 'Fail';
+  }
+
+  Future<void> saveMarks() async {
+    if (selectedStudent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select student')),
+      );
+      return;
+    }
+
+    final total = double.tryParse(totalController.text);
+    final obtained = double.tryParse(obtainedController.text);
+
+    if (examController.text.trim().isEmpty ||
+        total == null ||
+        obtained == null ||
+        total <= 0 ||
+        obtained < 0 ||
+        obtained > total) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid exam marks')),
+      );
+      return;
+    }
+
+    await widget.onSave({
+      'studentId': selectedStudent!['id'],
+      'studentName': selectedStudent!['name'],
+      'roll': selectedStudent!['roll'],
+      'class': selectedClass,
+      'exam': examController.text.trim(),
+      'subject': selectedSubject,
+      'total': total,
+      'obtained': obtained,
+      'percentage': percentage,
+      'result': result,
+      'date': DateTime.now().toIso8601String(),
+    });
+
+    if (!mounted) return;
+
+    obtainedController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Marks saved successfully')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subjects = subjectsFor(selectedClass);
+
+    if (!subjects.contains(selectedSubject)) {
+      selectedSubject = subjects.first;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Examination & DMC',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 15),
+
+        DropdownButtonFormField<String>(
+          value: selectedClass,
+          decoration: const InputDecoration(
+            labelText: 'Select Class',
+            border: OutlineInputBorder(),
+          ),
+          items: classes.map((c) =>
+            DropdownMenuItem(value: c, child: Text(c))).toList(),
+          onChanged: (v) {
+            setState(() {
+              selectedClass = v ?? 'First';
+              selectedStudent = null;
+              selectedSubject = subjectsFor(selectedClass).first;
+            });
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        DropdownButtonFormField<Map<String, dynamic>>(
+          value: selectedStudent,
+          decoration: const InputDecoration(
+            labelText: 'Select Student',
+            border: OutlineInputBorder(),
+          ),
+          items: classStudents.map((s) =>
+            DropdownMenuItem(
+              value: s,
+              child: Text('${s['name']} - ${s['roll']}'),
+            )).toList(),
+          onChanged: (v) => setState(() => selectedStudent = v),
+        ),
+
+        const SizedBox(height: 12),
+
+        TextField(
+          controller: examController,
+          decoration: const InputDecoration(
+            labelText: 'Exam Name (Monthly / Annual)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        DropdownButtonFormField<String>(
+          value: selectedSubject,
+          decoration: const InputDecoration(
+            labelText: 'Select Subject',
+            border: OutlineInputBorder(),
+          ),
+          items: subjects.map((s) =>
+            DropdownMenuItem(value: s, child: Text(s))).toList(),
+          onChanged: (v) {
+            setState(() => selectedSubject = v ?? subjects.first);
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        TextField(
+          controller: totalController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Total Marks',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+
+        const SizedBox(height: 12),
+
+        TextField(
+          controller: obtainedController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Obtained Marks',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+
+        const SizedBox(height: 15),
+
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Percentage: ${percentage.toStringAsFixed(2)}%',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Result: $result',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: result == 'Pass' ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        FilledButton.icon(
+          onPressed: saveMarks,
+          icon: const Icon(Icons.save),
+          label: const Text('Save Marks'),
+        ),
+
+        const Divider(height: 30),
+
+        const Text(
+          'Saved Marks Records',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+        ),
+
+        ...widget.marks
+            .where((m) => m['class'] == selectedClass)
+            .map((m) => Card(
+              child: ListTile(
+                title: Text('${m['studentName']}'),
+                subtitle: Text(
+                  '${m['exam']} | ${m['subject']}\n'
+                  'Obtained: ${m['obtained']} / ${m['total']}',
+                ),
+                isThreeLine: true,
+                trailing: Text('${m['percentage']}%'),
+              ),
+            )),
+      ],
     );
   }
 }
