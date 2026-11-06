@@ -612,7 +612,8 @@ class _SchoolHomeState extends State<SchoolHome> {
     );
   }
 
-  // ---------- PDF / PRINT ----------
+    // PDF / PRINT
+
   Future<void> makePdf(
     String title,
     Map<String, dynamic> student, {
@@ -633,25 +634,89 @@ class _SchoolHomeState extends State<SchoolHome> {
           sum + (double.tryParse('${p['obtained']}') ?? 0),
     );
 
+    final percentage =
+        total == 0 ? 0.0 : (obtained / total) * 100;
+
     doc.addPage(
       pw.Page(
-        build: (context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              school,
-              style: pw.TextStyle(
-                fontSize: 22,
-                fontWeight: pw.FontWeight.bold,
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                school,
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Text(
-              title,
-              style: const pw.TextStyle(fontSize: 18),
-            ),
-            pw.Divider(),
-            pw.Text('Student: ${val(student, 'name')}'),
-            pw.Text('Father: ${val(student, 'father')}'),
-            pw.Text('Roll No: ${val(student, 'roll')}'),
-            pw.Text('Class: ${val(student, 'class')}'),
+
+              pw.SizedBox(height: 10),
+
+              pw.Text(
+                title,
+                style: const pw.TextStyle(fontSize: 18),
+              ),
+
+              pw.Divider(),
+
+              pw.Text("Student: ${val(student, 'name')}"),
+              pw.Text("Father: ${val(student, 'father')}"),
+              pw.Text("Roll No: ${val(student, 'roll')}"),
+              pw.Text("Class: ${val(student, 'class')}"),
+              pw.Text("Phone: ${val(student, 'phone')}"),
+
+              pw.SizedBox(height: 15),
+
+              if (dmc) ...[
+                pw.Table.fromTextArray(
+                  headers: [
+                    'Subject',
+                    'Total',
+                    'Obtained',
+                  ],
+                  data: papers.map((p) {
+                    return [
+                      '${p['subject']}',
+                      '${p['total']}',
+                      '${p['obtained']}',
+                    ];
+                  }).toList(),
+                ),
+
+                pw.SizedBox(height: 15),
+
+                pw.Text('Total Marks: $total'),
+                pw.Text('Obtained Marks: $obtained'),
+
+                pw.Text(
+                  'Percentage: ${percentage.toStringAsFixed(2)}%',
+                ),
+
+                pw.Text(
+                  'Result: ${percentage >= 33 ? 'Pass' : 'Fail'}',
+                ),
+              ],
+
+              pw.SizedBox(height: 30),
+
+              pw.Row(
+                mainAxisAlignment:
+                    pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Teacher Signature: __________'),
+                  pw.Text('Principal Signature: __________'),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async {
+        return doc.save();
+      },
+    );
+  }
