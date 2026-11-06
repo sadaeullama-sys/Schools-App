@@ -1256,3 +1256,272 @@ class _MarksPageState extends State<MarksPage> {
     );
   }
 }
+class LicensePage extends StatefulWidget {
+  const LicensePage({super.key});
+
+  @override
+  State<LicensePage> createState() => _LicensePageState();
+}
+
+class _LicensePageState extends State<LicensePage> {
+  final keyController = TextEditingController();
+  bool busy = false;
+  String message = '';
+
+  Future<void> activate() async {
+    final key = keyController.text.trim();
+
+    if (key.isEmpty) {
+      setState(() => message = 'Please enter License Key');
+      return;
+    }
+
+    setState(() => busy = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedKey = prefs.getString('academy_generated_license') ?? '';
+
+    if (key == savedKey && key.isNotEmpty) {
+      final school = prefs.getString('academy_license_school') ?? '';
+
+      await prefs.setBool('academy_license_active', true);
+      await prefs.setString('academy_name', school);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CustomerLoginSetupPage(),
+        ),
+      );
+    } else {
+      setState(() {
+        message = 'Invalid License Key';
+        busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('License Activation')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                children: [
+                  const Icon(Icons.school, size: 65, color: Colors.blue),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'New Iqra Children Academy',
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+                  TextField(
+                    controller: keyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter License Key',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: busy ? null : activate,
+                      child: Text(busy ? 'Checking...' : 'Activate License'),
+                    ),
+                  ),
+                  if (message.isNotEmpty)
+                    Text(message, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 20),
+                  const Text('License Support: 03161847676'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CustomerLoginSetupPage extends StatefulWidget {
+  const CustomerLoginSetupPage({super.key});
+
+  @override
+  State<CustomerLoginSetupPage> createState() =>
+      _CustomerLoginSetupPageState();
+}
+
+class _CustomerLoginSetupPageState extends State<CustomerLoginSetupPage> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+
+  Future<void> saveLogin() async {
+    if (username.text.trim().isEmpty || password.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter username and password')),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'academy_customer_username',
+      username.text.trim(),
+    );
+    await prefs.setString('academy_customer_password', password.text);
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const CustomerLoginPage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create School Login')),
+      body: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Create Your School Account',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: username,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: saveLogin,
+              child: const Text('Save Login'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CustomerLoginPage extends StatefulWidget {
+  const CustomerLoginPage({super.key});
+
+  @override
+  State<CustomerLoginPage> createState() => _CustomerLoginPageState();
+}
+
+class _CustomerLoginPageState extends State<CustomerLoginPage> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+  String error = '';
+
+  Future<void> login() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedUser = prefs.getString('academy_customer_username') ?? '';
+    final savedPass = prefs.getString('academy_customer_password') ?? '';
+
+    if (username.text.trim() == savedUser &&
+        password.text == savedPass) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } else {
+      setState(() => error = 'Incorrect username or password');
+    }
+  }
+
+  void openAdmin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(25),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  // Five taps open the hidden Admin Login.
+                  _tapCount++;
+                  if (_tapCount >= 5) {
+                    _tapCount = 0;
+                    openAdmin();
+                  }
+                },
+                child: const CircleAvatar(
+                  radius: 45,
+                  child: Icon(Icons.school, size: 48),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'New Iqra Children Academy',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 25),
+              TextField(
+                controller: username,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton(
+                onPressed: login,
+                child: const Text('Login'),
+              ),
+              Text(error, style: const TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static int _tapCount = 0;
+}
