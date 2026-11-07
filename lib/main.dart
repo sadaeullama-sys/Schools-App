@@ -1285,30 +1285,37 @@ class AttendanceModule extends StatelessWidget {
             children: students.map((s) {
               bool present = true;
               return StatefulBuilder(
-                builder: (c, set) => CheckboxListTile(
-                  value: present,
-                  title: Text('${s['name']}'),
-                  subtitle: Text('${s['class']} • ${s['roll']}'),
-                  onChanged: (v) {
-                    present = v ?? true;
-                    set(() {});
-                    result.removeWhere(
-                      (x) => x['studentId'] == s['id'],
-                    );
-                    result.add({
-                      'studentId': s['id'],
-                      'studentName': s['name'],
-                      'class': s['class'],
-                      'date': today,
-                      'status': present ? 'Present' : 'Absent',
-                    });
-                  },
-                );
-              },
-            );
-          }).toList(),
-          ),
+               children: students.map((s) {
+  bool present = true;
+
+  return StatefulBuilder(
+    builder: (c, set) {
+      return CheckboxListTile(
+        value: present,
+        title: Text('${s['name']}'),
+        subtitle: Text(
+          '${s['class']} - ${s['roll']}',
         ),
+        onChanged: (v) {
+          present = v ?? true;
+          set(() {});
+
+          result.removeWhere(
+            (x) => x['studentId'] == s['id'],
+          );
+
+          result.add({
+            'studentId': s['id'],
+            'studentName': s['name'],
+            'class': s['class'],
+            'date': today,
+            'status': present ? 'Present' : 'Absent',
+          });
+        },
+      );
+    },
+  );
+}).toList(),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c),
