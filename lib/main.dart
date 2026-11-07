@@ -1358,7 +1358,7 @@ class AttendanceModule extends StatelessWidget {
                       'status': present ? 'Present' : 'Absent',
                     });
                   }
-                );
+                ),
               );
             }).toList(),
           ),
