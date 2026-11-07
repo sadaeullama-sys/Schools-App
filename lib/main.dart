@@ -1292,8 +1292,9 @@ class AttendanceModule extends StatelessWidget {
                     });
                   },
                 );
-              );
-            }).toList(),
+              },
+            );
+          }).toList(),,
           ),
         ),
         actions: [
