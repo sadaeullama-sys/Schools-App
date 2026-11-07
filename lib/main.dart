@@ -1081,6 +1081,16 @@ class StudentsModule extends StatelessWidget {
 
         ...students.map((s) => Card(
           child: ListTile(
+            onTap: () {
+              final prefsFuture = SharedPreferences.getInstance();
+              prefsFuture.then((prefs) {
+                final schoolName = prefs.getString('academy_name') ?? 'My School';
+                if (!context.mounted) return;
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => StudentIDCard(school: schoolName, student: s),
+                ));
+              });
+            },
             leading: const CircleAvatar(
               child: Icon(Icons.person),
             ),
@@ -1325,8 +1335,129 @@ class AttendanceModule extends StatelessWidget {
           ),
         )),
       ],
-    )
-      // ================= STUDENT ID CARD =================
+    );
+  }
+}
+
+// ================= EXAMS MODULE =================
+
+class ExamsModule extends StatelessWidget {
+  final List<Map<String, dynamic>> students;
+  final List<Map<String, dynamic>> marks;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+
+  const ExamsModule({
+    super.key,
+    required this.students,
+    required this.marks,
+    required this.onSave,
+  });
+
+  Future<void> addMarks(BuildContext context) async {
+    if (students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add students first')),
+      );
+      return;
+    }
+    String? studentId = '${students.first['id']}';
+    final exam = TextEditingController(text: 'Monthly Test');
+    final subject = TextEditingController();
+    final total = TextEditingController(text: '100');
+    final obtained = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Add Exam Marks'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              DropdownButtonFormField<String>(
+                value: studentId,
+                items: students.map((s) => DropdownMenuItem<String>(
+                  value: '${s['id']}', child: Text('${s['name']}'),
+                )).toList(),
+                onChanged: (v) => set(() => studentId = v),
+                decoration: const InputDecoration(labelText: 'Student'),
+              ),
+              TextField(controller: exam, decoration: const InputDecoration(labelText: 'Exam Name')),
+              TextField(controller: subject, decoration: const InputDecoration(labelText: 'Subject')),
+              TextField(controller: total, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Marks')),
+              TextField(controller: obtained, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Obtained Marks')),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+          ],
+        ),
+      ),
+    );
+    final totalValue = double.tryParse(total.text) ?? 0;
+    final obtainedValue = double.tryParse(obtained.text) ?? 0;
+    if (ok == true && studentId != null && subject.text.trim().isNotEmpty && totalValue > 0 && obtainedValue >= 0 && obtainedValue <= totalValue) {
+      final student = students.firstWhere((s) => '${s['id']}' == studentId);
+      onSave([...marks, {
+        'studentId': studentId,
+        'studentName': student['name'],
+        'roll': student['roll'],
+        'class': student['class'],
+        'exam': exam.text.trim(),
+        'subject': subject.text.trim(),
+        'total': totalValue,
+        'obtained': obtainedValue,
+        'date': DateTime.now().toString().substring(0, 10),
+      }]);
+    }
+    exam.dispose(); subject.dispose(); total.dispose(); obtained.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(12),
+    children: [
+      FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add Marks')),
+      ...marks.reversed.map((m) => Card(child: ListTile(
+        title: Text('${m['studentName']} - ${m['subject']}'),
+        subtitle: Text('${m['exam']} • ${m['class']} • ${m['date']}'),
+        trailing: Text('${m['obtained']}/${m['total']}'),
+      ))),
+      if (marks.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('No exam records'))),
+    ],
+  );
+}
+
+// ================= REPORTS MODULE =================
+
+class ReportsModule extends StatelessWidget {
+  final String school;
+  final List<Map<String, dynamic>> students;
+  final List<Map<String, dynamic>> fees;
+  final List<Map<String, dynamic>> marks;
+
+  const ReportsModule({
+    super.key,
+    required this.school,
+    required this.students,
+    required this.fees,
+    required this.marks,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final received = fees.fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
+    return ListView(padding: const EdgeInsets.all(14), children: [
+      Text(school, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: blue)),
+      const SizedBox(height: 12),
+      Card(child: ListTile(leading: const Icon(Icons.people), title: const Text('Total Students'), trailing: Text('${students.length}'))),
+      Card(child: ListTile(leading: const Icon(Icons.payments), title: const Text('Fees Received'), trailing: Text('Rs ${received.toStringAsFixed(0)}'))),
+      Card(child: ListTile(leading: const Icon(Icons.school), title: const Text('Exam Entries'), trailing: Text('${marks.length}'))),
+      const Padding(padding: EdgeInsets.all(12), child: Text('Reports summary. PDF export/printing is not included in this version.', style: TextStyle(color: Colors.black54))),
+    ]);
+  }
+}
+
+// ================= STUDENT ID CARD =================
 
 class StudentIDCard extends StatelessWidget {
   final String school;
