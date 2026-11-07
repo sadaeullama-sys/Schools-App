@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(const SchoolManagementApp());
@@ -91,38 +90,7 @@ class _LicensePageState extends State<LicensePage> {
   final keyController = TextEditingController();
 
   String error = '';
-  String deviceId = '';
   static int taps = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    loadDeviceId();
-  }
-
-  Future<void> loadDeviceId() async {
-    final p = await SharedPreferences.getInstance();
-    String? id = p.getString('academy_device_id');
-    if (id == null || id.isEmpty) {
-      final random = Random.secure();
-      final code = List.generate(20,
-          (_) => random.nextInt(16).toRadixString(16).toUpperCase()).join();
-      id = 'SMS-DEVICE-$code';
-      await p.setString('academy_device_id', id);
-    }
-    if (mounted) setState(() => deviceId = id!);
-  }
-
-  Future<void> contactWhatsApp() async {
-    final uri = Uri.parse('https://wa.me/923161847676?text=${Uri.encodeComponent('Assalam-o-Alaikum, I need help with School Management System license. Device ID: $deviceId')}');
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp. Please install WhatsApp.')),
-        );
-      }
-    }
-  }
 
   Future<void> activate() async {
     final p = await SharedPreferences.getInstance();
@@ -200,36 +168,6 @@ class _LicensePageState extends State<LicensePage> {
                     ),
                   ),
                   const SizedBox(height: 25),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Your Device ID', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xffeef3fb),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: blue.withOpacity(0.25)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: SelectableText(deviceId.isEmpty ? 'Generating Device ID...' : deviceId)),
-                        IconButton(
-                          tooltip: 'Copy Device ID',
-                          onPressed: deviceId.isEmpty ? null : () {
-                            Clipboard.setData(ClipboardData(text: deviceId));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Device ID copied')),
-                            );
-                          },
-                          icon: const Icon(Icons.copy),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
                   TextField(
                     controller: keyController,
                     decoration: const InputDecoration(
@@ -251,12 +189,7 @@ class _LicensePageState extends State<LicensePage> {
                       style: const TextStyle(color: Colors.red),
                     ),
                   const SizedBox(height: 15),
-                  OutlinedButton.icon(
-                    onPressed: contactWhatsApp,
-                    icon: const Icon(Icons.chat, color: Colors.green),
-                    label: const Text('WhatsApp License Support: 03161847676'),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.green),
-                  ),
+                  const Text('License Support: 03161847676'),
                 ],
               ),
             ),
@@ -1357,10 +1290,11 @@ class AttendanceModule extends StatelessWidget {
                       'date': today,
                       'status': present ? 'Present' : 'Absent',
                     });
-                  }
-                ),
-              );
-            }).toList(),
+                  },
+                );
+              },
+            );
+          }).toList(),
           ),
         ),
         actions: [
