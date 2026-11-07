@@ -4,6 +4,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 
 void main() {
   runApp(const SchoolManagementApp());
@@ -740,19 +743,32 @@ class _HomePageState extends State<HomePage> {
   );
 
   Widget statCard(String title, String value, IconData icon, Color color) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(.78)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(.18),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(title, textAlign: TextAlign.center),
-            const SizedBox(height: 5),
+            Icon(icon, color: Colors.white, size: 29),
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 13)),
             Text(value, style: const TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.bold,
+              color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold,
             )),
           ],
         ),
@@ -761,79 +777,75 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget dashboard() {
+    final today = DateTime.now().toString().substring(0, 10);
+    final todayAttendance = attendance.where((a) => '${a['date']}' == today).toList();
+    final present = todayAttendance.where((a) => '${a['status']}' == 'Present').length;
+    final received = totalFees;
     return RefreshIndicator(
       onRefresh: loadAll,
       child: ListView(
         padding: const EdgeInsets.all(14),
         children: [
-          Text(school, style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.bold,
-            color: blue,
-          )),
-          const SizedBox(height: 15),
-
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF082B59), Color(0xFF1764A5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(children: [
+              Container(
+                width: 55, height: 55,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(.16), shape: BoxShape.circle),
+                child: const Icon(Icons.school, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 13),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(school, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text('School Management Dashboard', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(DateTime.now().toString().substring(0, 10), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ])),
+            ]),
+          ),
+          const SizedBox(height: 16),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.35,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.42,
             children: [
-              statCard('Total Students', '${students.length}',
-                  Icons.people, Colors.blue),
-              statCard('Fee Received',
-                  'Rs ${totalFees.toStringAsFixed(0)}',
-                  Icons.payments, Colors.green),
-              statCard('Attendance Records', '${attendance.length}',
-                  Icons.fact_check, Colors.orange),
-              statCard('Exam Records', '${marks.length}',
-                  Icons.school, Colors.purple),
+              statCard('Total Students', '${students.length}', Icons.people, const Color(0xFF1769D2)),
+              statCard("Today's Attendance", '$present / ${todayAttendance.length}', Icons.calendar_month, const Color(0xFF159B58)),
+              statCard('Fee Collected', 'Rs ${received.toStringAsFixed(0)}', Icons.payments, const Color(0xFF7435B8)),
+              statCard('Exam Records', '${marks.length}', Icons.workspace_premium, const Color(0xFFE34B55)),
             ],
           ),
-
-          const SizedBox(height: 18),
-          const Text('Quick Actions',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ActionChip(
-                avatar: const Icon(Icons.person_add),
-                label: const Text('Add Student'),
-                onPressed: () => setState(() => selected = 1),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.payments),
-                label: const Text('Collect Fee'),
-                onPressed: () => setState(() => selected = 2),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.fact_check),
-                label: const Text('Attendance'),
-                onPressed: () => setState(() => selected = 3),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.school),
-                label: const Text('Add Marks'),
-                onPressed: () => setState(() => selected = 4),
-              ),
-            ],
-          ),
-
           const SizedBox(height: 20),
-          const Text('Recent Fee Payments',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-
+          const Text('Quick Actions', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: blue)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 9, runSpacing: 9, children: [
+            ActionChip(avatar: const Icon(Icons.person_add, color: Colors.white), backgroundColor: const Color(0xFF1769D2), label: const Text('Add Student', style: TextStyle(color: Colors.white)), onPressed: () => setState(() => selected = 1)),
+            ActionChip(avatar: const Icon(Icons.payments, color: Colors.white), backgroundColor: const Color(0xFF159B58), label: const Text('Collect Fee', style: TextStyle(color: Colors.white)), onPressed: () => setState(() => selected = 2)),
+            ActionChip(avatar: const Icon(Icons.fact_check, color: Colors.white), backgroundColor: const Color(0xFFE58B19), label: const Text('Attendance', style: TextStyle(color: Colors.white)), onPressed: () => setState(() => selected = 3)),
+            ActionChip(avatar: const Icon(Icons.assessment, color: Colors.white), backgroundColor: const Color(0xFF7435B8), label: const Text('Reports', style: TextStyle(color: Colors.white)), onPressed: () => setState(() => selected = 5)),
+          ]),
+          const SizedBox(height: 20),
+          const Text('Recent Fee Payments', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: blue)),
+          const SizedBox(height: 8),
           ...fees.reversed.take(5).map((f) => Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
             child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.payments),
-              ),
-              title: Text('${f['studentName'] ?? ''}'),
+              leading: const CircleAvatar(backgroundColor: Color(0xFFE5F5EC), child: Icon(Icons.payments, color: Color(0xFF159B58))),
+              title: Text('${f['studentName'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text('${f['date'] ?? ''}'),
-              trailing: Text('Rs ${f['amount'] ?? 0}'),
+              trailing: Text('Rs ${f['amount'] ?? 0}', style: const TextStyle(color: Color(0xFF159B58), fontWeight: FontWeight.bold)),
             ),
           )),
         ],
@@ -1430,7 +1442,7 @@ class ExamsModule extends StatelessWidget {
 
 // ================= REPORTS MODULE =================
 
-class ReportsModule extends StatelessWidget {
+class ReportsModule extends StatefulWidget {
   final String school;
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> fees;
@@ -1445,17 +1457,212 @@ class ReportsModule extends StatelessWidget {
   });
 
   @override
+  State<ReportsModule> createState() => _ReportsModuleState();
+}
+
+class _ReportsModuleState extends State<ReportsModule> {
+  String selectedClass = schoolClasses.first;
+
+  Future<void> exportClassResult() async {
+    final classStudents = widget.students.where((s) => '${s['class']}' == selectedClass).toList();
+    if (classStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No students in this class')));
+      return;
+    }
+    await printClassResultPdf(widget.school, selectedClass, classStudents, widget.marks);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final received = fees.fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
+    final received = widget.fees.fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
     return ListView(padding: const EdgeInsets.all(14), children: [
-      Text(school, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: blue)),
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF082B59), Color(0xFF1764A5)]),
+          borderRadius: BorderRadius.circular(17),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.assessment, color: Colors.white, size: 32),
+          const SizedBox(height: 8),
+          Text(widget.school, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text('Reports & Result Centre', style: TextStyle(color: Colors.white70)),
+        ]),
+      ),
       const SizedBox(height: 12),
-      Card(child: ListTile(leading: const Icon(Icons.people), title: const Text('Total Students'), trailing: Text('${students.length}'))),
-      Card(child: ListTile(leading: const Icon(Icons.payments), title: const Text('Fees Received'), trailing: Text('Rs ${received.toStringAsFixed(0)}'))),
-      Card(child: ListTile(leading: const Icon(Icons.school), title: const Text('Exam Entries'), trailing: Text('${marks.length}'))),
-      const Padding(padding: EdgeInsets.all(12), child: Text('Reports summary. PDF export/printing is not included in this version.', style: TextStyle(color: Colors.black54))),
+      Card(child: ListTile(leading: const Icon(Icons.people, color: blue), title: const Text('Total Students'), trailing: Text('${widget.students.length}'))),
+      Card(child: ListTile(leading: const Icon(Icons.payments, color: Colors.green), title: const Text('Fees Received'), trailing: Text('Rs ${received.toStringAsFixed(0)}'))),
+      Card(child: ListTile(leading: const Icon(Icons.school, color: Colors.deepPurple), title: const Text('Exam Entries'), trailing: Text('${widget.marks.length}'))),
+      const SizedBox(height: 12),
+      const Text('Class-wise Combined Result PDF', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: blue)),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        value: selectedClass,
+        decoration: const InputDecoration(labelText: 'Select Class', border: OutlineInputBorder()),
+        items: schoolClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+        onChanged: (v) { if (v != null) setState(() => selectedClass = v); },
+      ),
+      const SizedBox(height: 8),
+      FilledButton.icon(onPressed: exportClassResult, icon: const Icon(Icons.picture_as_pdf), label: const Text('Print / Save Whole Class Result PDF')),
+      const SizedBox(height: 16),
+      const Text('Individual Student Result PDF', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: blue)),
+      const SizedBox(height: 6),
+      ...widget.students.map((student) {
+        final studentMarks = widget.marks.where((m) => '${m['studentId']}' == '${student['id']}').toList();
+        return Card(
+          child: ExpansionTile(
+            leading: const CircleAvatar(child: Icon(Icons.person)),
+            title: Text('${student['name'] ?? ''}'),
+            subtitle: Text('Class ${student['class'] ?? ''} • Roll ${student['roll'] ?? ''}'),
+            children: [
+              if (studentMarks.isEmpty)
+                const ListTile(title: Text('No result records for this student')),
+              if (studentMarks.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  title: const Text('Print Complete Student Result PDF'),
+                  subtitle: Text('${studentMarks.length} subject/exam records'),
+                  trailing: IconButton(
+                    tooltip: 'Print individual result PDF',
+                    icon: const Icon(Icons.print, color: blue),
+                    onPressed: () => printIndividualResultPdf(widget.school, student, studentMarks),
+                  ),
+                ),
+              ListTile(
+                leading: const Icon(Icons.badge),
+                title: const Text('View Student ID Card'),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentIDCard(school: widget.school, student: student))),
+              ),
+              ListTile(
+                leading: const Icon(Icons.receipt_long),
+                title: const Text('View Fee Card'),
+                onTap: () {
+                  final studentFees = widget.fees.where((f) => '${f['studentId']}' == '${student['id']}').toList();
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => StudentFeeCard(school: widget.school, student: student, fees: studentFees)));
+                },
+              ),
+            ],
+          ),
+        );
+      }),
     ]);
   }
+}
+
+// ================= RESULT PDF HELPERS =================
+
+pw.Widget _pdfSchoolHeader(String school, String subtitle) {
+  return pw.Container(
+    width: double.infinity,
+    padding: const pw.EdgeInsets.all(14),
+    decoration: pw.BoxDecoration(
+      color: PdfColor.fromInt(0xFF123B70),
+      borderRadius: pw.BorderRadius.circular(8),
+    ),
+    child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+      pw.Text(school, textAlign: pw.TextAlign.center, style: pw.TextStyle(color: PdfColors.white, fontSize: 19, fontWeight: pw.FontWeight.bold)),
+      pw.SizedBox(height: 5),
+      pw.Text(subtitle, style: const pw.TextStyle(color: PdfColors.white, fontSize: 12)),
+    ]),
+  );
+}
+
+Future<void> printIndividualResultPdf(String school, Map<String, dynamic> student, List<Map<String, dynamic>> records) async {
+  final doc = pw.Document();
+  final total = records.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
+  final obtained = records.fold<double>(0, (a, m) => a + (double.tryParse('${m['obtained']}') ?? 0));
+  final percent = total == 0 ? 0.0 : obtained / total * 100;
+  final grade = percent >= 80 ? 'A+' : percent >= 70 ? 'A' : percent >= 60 ? 'B' : percent >= 50 ? 'C' : percent >= 40 ? 'D' : 'Fail';
+  doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4, build: (_) => [
+    _pdfSchoolHeader(school, 'INDIVIDUAL STUDENT RESULT / DMC'),
+    pw.SizedBox(height: 18),
+    pw.Text('Student: ${student['name'] ?? ''}'),
+    pw.Text('Father Name: ${student['father'] ?? ''}'),
+    pw.Text('Class: ${student['class'] ?? ''}    Roll No: ${student['roll'] ?? ''}'),
+    pw.SizedBox(height: 16),
+    pw.TableHelper.fromTextArray(
+      headers: const ['Exam', 'Subject', 'Total', 'Obtained', '%'],
+      data: records.map((m) {
+        final t = double.tryParse('${m['total']}') ?? 0;
+        final o = double.tryParse('${m['obtained']}') ?? 0;
+        return ['${m['exam'] ?? ''}', '${m['subject'] ?? ''}', '$t', '$o', t == 0 ? '0' : '${(o / t * 100).toStringAsFixed(1)}%'];
+      }).toList(),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+      headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold),
+      cellAlignment: pw.Alignment.center,
+      border: pw.TableBorder.all(color: PdfColors.grey400),
+    ),
+    pw.SizedBox(height: 18),
+    pw.Text('Grand Total: ${total.toStringAsFixed(0)}'),
+    pw.Text('Obtained Marks: ${obtained.toStringAsFixed(0)}'),
+    pw.Text('Percentage: ${percent.toStringAsFixed(2)}%'),
+    pw.Text('Grade: $grade'),
+    pw.Text('Result: ${percent >= 40 ? 'PASS' : 'FAIL'}'),
+    pw.SizedBox(height: 45),
+    pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Class Teacher Signature'), pw.Text('Principal Signature')]),
+  ]));
+  await Printing.layoutPdf(onLayout: (_) async => doc.save());
+}
+
+Future<void> printClassResultPdf(String school, String className, List<Map<String, dynamic>> students, List<Map<String, dynamic>> allMarks) async {
+  final doc = pw.Document();
+  final rows = <List<String>>[];
+  for (final student in students) {
+    final records = allMarks.where((m) => '${m['studentId']}' == '${student['id']}').toList();
+    final total = records.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
+    final obtained = records.fold<double>(0, (a, m) => a + (double.tryParse('${m['obtained']}') ?? 0));
+    final percent = total == 0 ? 0.0 : obtained / total * 100;
+    final grade = percent >= 80 ? 'A+' : percent >= 70 ? 'A' : percent >= 60 ? 'B' : percent >= 50 ? 'C' : percent >= 40 ? 'D' : 'Fail';
+    rows.add(['${student['roll'] ?? ''}', '${student['name'] ?? ''}', total.toStringAsFixed(0), obtained.toStringAsFixed(0), '${percent.toStringAsFixed(1)}%', grade, percent >= 40 && total > 0 ? 'PASS' : 'FAIL']);
+  }
+  doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4.landscape, build: (_) => [
+    _pdfSchoolHeader(school, 'CLASS $className — COMBINED RESULT'),
+    pw.SizedBox(height: 14),
+    pw.Text('Generated: ${DateTime.now().toString().substring(0, 10)}'),
+    pw.SizedBox(height: 12),
+    pw.TableHelper.fromTextArray(
+      headers: const ['Roll No', 'Student Name', 'Total', 'Obtained', 'Percentage', 'Grade', 'Result'],
+      data: rows,
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+      headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9),
+      cellStyle: const pw.TextStyle(fontSize: 9),
+      cellAlignment: pw.Alignment.center,
+      border: pw.TableBorder.all(color: PdfColors.grey400),
+    ),
+    pw.SizedBox(height: 30),
+    pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Class Teacher Signature'), pw.Text('Principal Signature')]),
+  ]));
+  await Printing.layoutPdf(onLayout: (_) async => doc.save());
+}
+
+Future<void> printStudentIdCardPdf(String school, Map<String, dynamic> student) async {
+  final doc = pw.Document();
+  doc.addPage(pw.Page(
+    pageFormat: PdfPageFormat.a4,
+    build: (_) => pw.Center(
+      child: pw.Container(
+        width: 330,
+        padding: const pw.EdgeInsets.all(20),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColor.fromInt(0xFF123B70), width: 2),
+          borderRadius: pw.BorderRadius.circular(12),
+        ),
+        child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+          _pdfSchoolHeader(school, 'STUDENT ID CARD'),
+          pw.SizedBox(height: 18),
+          pw.Text('${student['name'] ?? ''}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 10),
+          pw.Text('Father Name: ${student['father'] ?? ''}'),
+          pw.Text('Roll Number: ${student['roll'] ?? ''}'),
+          pw.Text('Class: ${student['class'] ?? ''}'),
+          pw.Text('Contact: ${student['phone'] ?? ''}'),
+          pw.SizedBox(height: 35),
+          pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Student Signature'), pw.Text('Principal Signature')]),
+        ]),
+      ),
+    ),
+  ));
+  await Printing.layoutPdf(onLayout: (_) async => doc.save());
 }
 
 // ================= STUDENT ID CARD =================
@@ -1473,51 +1680,75 @@ class StudentIDCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Student ID Card')),
+      appBar: AppBar(
+        title: const Text('Student ID Card'),
+        backgroundColor: blue,
+        foregroundColor: Colors.white,
+        actions: [IconButton(tooltip: 'Print / Save ID PDF', icon: const Icon(Icons.picture_as_pdf), onPressed: () => printStudentIdCardPdf(school, student))],
+      ),
+      backgroundColor: const Color(0xffeef3fa),
       body: Center(
-        child: Card(
-          elevation: 5,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
           child: Container(
-            width: 330,
-            padding: const EdgeInsets.all(22),
+            width: 370,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: blue.withOpacity(.16), blurRadius: 18, offset: const Offset(0, 8))],
+              border: Border.all(color: const Color(0xffd5e1f0)),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.school, size: 45, color: blue),
-                Text(
-                  school,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: blue,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(colors: [Color(0xff082b59), Color(0xff1764a5)]),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
                   ),
+                  child: Column(children: [
+                    const CircleAvatar(radius: 28, backgroundColor: Colors.white, child: Icon(Icons.school, color: blue, size: 32)),
+                    const SizedBox(height: 9),
+                    Text(school.toUpperCase(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 5),
+                    const Text('STUDENT ID CARD', style: TextStyle(color: Colors.white70, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+                  ]),
                 ),
-                const Divider(height: 25),
-                const CircleAvatar(
-                  radius: 42,
-                  child: Icon(Icons.person, size: 45),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(children: [
+                    const CircleAvatar(radius: 48, backgroundColor: Color(0xffe7effa), child: Icon(Icons.person, size: 55, color: blue)),
+                    const SizedBox(height: 12),
+                    Text('${student['name'] ?? ''}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: blue)),
+                    const SizedBox(height: 14),
+                    _idDetail('Father Name', student['father']),
+                    _idDetail('Roll Number', student['roll']),
+                    _idDetail('Class', student['class']),
+                    _idDetail('Contact No.', student['phone']),
+                    const SizedBox(height: 18),
+                    const Divider(),
+                    const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Student Signature', style: TextStyle(fontSize: 11)), Text('Principal Signature', style: TextStyle(fontSize: 11))]),
+                    const SizedBox(height: 14),
+                    const Text('Education Today  |  Bright Future Tomorrow', style: TextStyle(color: Colors.black54, fontSize: 10)),
+                  ]),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  '${student['name']}',
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text('Father: ${student['father']}'),
-                Text('Roll No: ${student['roll']}'),
-                Text('Class: ${student['class']}'),
-                Text('Phone: ${student['phone']}'),
-                const SizedBox(height: 20),
-                const Divider(),
-                const Text('Authorized School ID Card'),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _idDetail(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(children: [
+        Expanded(child: Text(label, style: const TextStyle(color: Colors.black54, fontSize: 13))),
+        Expanded(child: Text('${value ?? ''}', textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+      ]),
     );
   }
 }
@@ -1661,7 +1892,12 @@ class StudentDMC extends StatelessWidget {
         percent >= 40 ? 'D' : 'Fail';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detailed Marks Certificate')),
+      appBar: AppBar(
+        title: const Text('DMC / Result Card'),
+        backgroundColor: blue,
+        foregroundColor: Colors.white,
+        actions: [IconButton(tooltip: 'Print / Save PDF', icon: const Icon(Icons.picture_as_pdf), onPressed: () => printIndividualResultPdf(school, student, records))],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
