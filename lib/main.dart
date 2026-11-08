@@ -699,6 +699,9 @@ class _HomePageState extends State<HomePage> {
   List<Map<String,dynamic>> fees = [];
   List<Map<String,dynamic>> attendance = [];
   List<Map<String,dynamic>> marks = [];
+  List<Map<String,dynamic>> transport = [];
+  List<Map<String,dynamic>> salaries = [];
+  List<Map<String,dynamic>> expenses = [];
 
   @override
   void initState() {
@@ -714,6 +717,9 @@ class _HomePageState extends State<HomePage> {
     final f = await readData('academy_fees');
     final a = await readData('academy_attendance');
     final m = await readData('academy_marks');
+    final t = await readData('academy_transport');
+    final sal = await readData('academy_salaries');
+    final ex = await readData('academy_expenses');
 
     if (!mounted) return;
 
@@ -723,6 +729,9 @@ class _HomePageState extends State<HomePage> {
       fees = f;
       attendance = a;
       marks = m;
+      transport = t;
+      salaries = sal;
+      expenses = ex;
     });
   }
 
@@ -731,6 +740,9 @@ class _HomePageState extends State<HomePage> {
     await writeData('academy_fees', fees);
     await writeData('academy_attendance', attendance);
     await writeData('academy_marks', marks);
+    await writeData('academy_transport', transport);
+    await writeData('academy_salaries', salaries);
+    await writeData('academy_expenses', expenses);
     await loadAll();
   }
 
@@ -882,13 +894,16 @@ class _HomePageState extends State<HomePage> {
         fees: fees,
         marks: marks,
       ),
+      TransportModule(records: transport, onSave: (v) async { transport = v; await saveAll(); }),
+      SalaryModule(records: salaries, onSave: (v) async { salaries = v; await saveAll(); }),
+      SchoolExpensesModule(records: expenses, onSave: (v) async { expenses = v; await saveAll(); }),
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(selected == 0
             ? school
-            : ['Home','Students','Fees','Attendance','Exams','Reports'][selected]),
+            : ['Home','Students','Fees','Attendance','Exams','Reports','Transport','Staff Salary','School Expenses'][selected]),
       ),
 
       drawer: Drawer(
@@ -907,7 +922,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 9; i++)
               ListTile(
                 leading: Icon([
                   Icons.home,
@@ -916,6 +931,9 @@ class _HomePageState extends State<HomePage> {
                   Icons.fact_check,
                   Icons.school,
                   Icons.picture_as_pdf,
+                  Icons.directions_bus,
+                  Icons.badge,
+                  Icons.account_balance_wallet,
                 ][i]),
                 title: Text([
                   'Dashboard',
@@ -924,6 +942,9 @@ class _HomePageState extends State<HomePage> {
                   'Attendance',
                   'Exams / DMC',
                   'Reports',
+                  'Transport',
+                  'Staff Salary',
+                  'School Expenses',
                 ][i]),
                 selected: selected == i,
                 onTap: () {
@@ -951,7 +972,7 @@ class _HomePageState extends State<HomePage> {
 
       body: pages[selected],
 
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: selected < 6 ? NavigationBar(
         selectedIndex: selected,
         onDestinationSelected: (v) {
           setState(() => selected = v);
@@ -970,10 +991,108 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(
             icon: Icon(Icons.picture_as_pdf), label: 'Reports'),
         ],
-      ),
+      ) : null,
     );
   }
 }
+
+// ================= TRANSPORT MODULE =================
+class TransportModule extends StatelessWidget {
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  const TransportModule({super.key, required this.records, required this.onSave});
+
+  Future<void> addRecord(BuildContext context) async {
+    final student = TextEditingController();
+    final route = TextEditingController();
+    final amount = TextEditingController();
+    final month = TextEditingController(text: DateTime.now().toString().substring(0, 7));
+    final formKey = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Add Transport Record'),
+      content: Form(key: formKey, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextFormField(controller: student, decoration: const InputDecoration(labelText: 'Student Name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter student name' : null),
+        TextFormField(controller: route, decoration: const InputDecoration(labelText: 'Route / Pickup Point')),
+        TextFormField(controller: month, decoration: const InputDecoration(labelText: 'Month (YYYY-MM)')),
+        TextFormField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Transport Fee (Rs)'), validator: (v) => (double.tryParse(v ?? '') ?? -1) < 0 ? 'Enter valid amount' : null),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save'))],
+    ));
+    if (ok == true) onSave([...records, {'student': student.text.trim(), 'route': route.text.trim(), 'month': month.text.trim(), 'amount': double.parse(amount.text), 'date': DateTime.now().toIso8601String()}]);
+    student.dispose(); route.dispose(); amount.dispose(); month.dispose();
+  }
+
+  @override Widget build(BuildContext context) {
+    final total = records.fold<double>(0, (a, r) => a + (double.tryParse('${r['amount']}') ?? 0));
+    return Scaffold(floatingActionButton: FloatingActionButton.extended(onPressed: () => addRecord(context), icon: const Icon(Icons.add), label: const Text('Add Transport')),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        _financeSummary('Total Transport Fees', total),
+        const SizedBox(height: 12),
+        ...records.asMap().entries.map((e) => Card(child: ListTile(leading: const Icon(Icons.directions_bus, color: blue), title: Text('${e.value['student']}'), subtitle: Text('${e.value['route'] ?? ''} • ${e.value['month'] ?? ''}'), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text('Rs ${e.value['amount']}'), IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { final copy = [...records]..removeAt(e.key); onSave(copy); })])))),
+        if (records.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No transport records yet'))),
+      ]));
+  }
+}
+
+// ================= STAFF SALARY MODULE =================
+class SalaryModule extends StatelessWidget {
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  const SalaryModule({super.key, required this.records, required this.onSave});
+
+  Future<void> addSalary(BuildContext context) async {
+    final name = TextEditingController(); final role = TextEditingController();
+    final amount = TextEditingController(); final month = TextEditingController(text: DateTime.now().toString().substring(0, 7));
+    final key = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Add Staff Salary'), content: Form(key: key, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Employee Name'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter name' : null),
+      TextFormField(controller: role, decoration: const InputDecoration(labelText: 'Designation')),
+      TextFormField(controller: month, decoration: const InputDecoration(labelText: 'Salary Month (YYYY-MM)')),
+      TextFormField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Salary Paid (Rs)'), validator: (v) => (double.tryParse(v ?? '') ?? -1) < 0 ? 'Enter valid amount' : null),
+    ]))), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save'))]));
+    if (ok == true) onSave([...records, {'name': name.text.trim(), 'role': role.text.trim(), 'month': month.text.trim(), 'amount': double.parse(amount.text), 'date': DateTime.now().toIso8601String()}]);
+    name.dispose(); role.dispose(); amount.dispose(); month.dispose();
+  }
+
+  @override Widget build(BuildContext context) {
+    final total = records.fold<double>(0, (a, r) => a + (double.tryParse('${r['amount']}') ?? 0));
+    return Scaffold(floatingActionButton: FloatingActionButton.extended(onPressed: () => addSalary(context), icon: const Icon(Icons.add), label: const Text('Add Salary')),
+      body: ListView(padding: const EdgeInsets.all(16), children: [_financeSummary('Total Salary Paid', total), const SizedBox(height: 12),
+        ...records.asMap().entries.map((e) => Card(child: ListTile(leading: const Icon(Icons.badge, color: blue), title: Text('${e.value['name']}'), subtitle: Text('${e.value['role'] ?? ''} • ${e.value['month'] ?? ''}'), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text('Rs ${e.value['amount']}'), IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { final copy = [...records]..removeAt(e.key); onSave(copy); })])))),
+        if (records.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No salary records yet'))),
+      ]));
+  }
+}
+
+// ================= SCHOOL EXPENSES MODULE =================
+class SchoolExpensesModule extends StatelessWidget {
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  const SchoolExpensesModule({super.key, required this.records, required this.onSave});
+
+  Future<void> addExpense(BuildContext context) async {
+    final title = TextEditingController(); final category = TextEditingController(); final amount = TextEditingController();
+    final key = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Add School Expense'), content: Form(key: key, child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextFormField(controller: title, decoration: const InputDecoration(labelText: 'Expense Description'), validator: (v) => v == null || v.trim().isEmpty ? 'Enter description' : null),
+      TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Category (Rent, Electricity, Stationery...)')),
+      TextFormField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount (Rs)'), validator: (v) => (double.tryParse(v ?? '') ?? -1) < 0 ? 'Enter valid amount' : null),
+    ])), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () { if (key.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Save'))]));
+    if (ok == true) onSave([...records, {'title': title.text.trim(), 'category': category.text.trim(), 'amount': double.parse(amount.text), 'date': DateTime.now().toIso8601String()}]);
+    title.dispose(); category.dispose(); amount.dispose();
+  }
+
+  @override Widget build(BuildContext context) {
+    final total = records.fold<double>(0, (a, r) => a + (double.tryParse('${r['amount']}') ?? 0));
+    return Scaffold(floatingActionButton: FloatingActionButton.extended(onPressed: () => addExpense(context), icon: const Icon(Icons.add), label: const Text('Add Expense')),
+      body: ListView(padding: const EdgeInsets.all(16), children: [_financeSummary('Total School Expenses', total), const SizedBox(height: 12),
+        ...records.asMap().entries.map((e) => Card(child: ListTile(leading: const Icon(Icons.account_balance_wallet, color: blue), title: Text('${e.value['title']}'), subtitle: Text('${e.value['category'] ?? ''} • ${e.value['date'].toString().split('T').first}'), trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text('Rs ${e.value['amount']}'), IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { final copy = [...records]..removeAt(e.key); onSave(copy); })])))),
+        if (records.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No school expenses yet'))),
+      ]));
+  }
+}
+
+Widget _financeSummary(String title, double amount) => Card(color: const Color(0xffe8f0fb), child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const Icon(Icons.account_balance_wallet, color: blue, size: 32), const SizedBox(width: 14), Expanded(child: Text(title)), Text('Rs ${amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: blue))])));
 
 // ================= STUDENTS MODULE =================
 
