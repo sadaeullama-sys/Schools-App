@@ -1219,7 +1219,7 @@ class StudentsModule extends StatelessWidget {
   }
 
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(14),children:[
-    Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xff123b70),Color(0xff2873b9)]),borderRadius:BorderRadius.circular(18)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('STUDENT REGISTRATION',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.bold)),SizedBox(height:5),Text('Create complete student profile with photo and admission details',style:TextStyle(color:Colors.white70))]),
+    Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xff123b70),Color(0xff2873b9)]),borderRadius:BorderRadius.circular(18)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('STUDENT REGISTRATION',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.bold)),SizedBox(height:5),Text('Create complete student profile with photo and admission details',style:TextStyle(color:Colors.white70))])),
     const SizedBox(height:12),FilledButton.icon(onPressed:()=>addStudent(context),icon:const Icon(Icons.person_add_alt_1),label:const Text('New Student Registration')),
     ...students.map((s)=>Card(elevation:1,child:ListTile(contentPadding:const EdgeInsets.all(10),leading:CircleAvatar(radius:27,backgroundImage:(s['photoPath']??'').toString().isNotEmpty && File(s['photoPath']).existsSync()?FileImage(File(s['photoPath'])):null,child:(s['photoPath']??'').toString().isEmpty?const Icon(Icons.person):null),title:Text('${s['name']}',style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('Class ${s['class']} • Roll ${s['roll']}\nFather: ${s['father']}'),isThreeLine:true,trailing:PopupMenuButton<String>(onSelected:(v){if(v=='delete')onSave(students.where((x)=>x['id']!=s['id']).toList()); if(v=='id')Navigator.push(context,MaterialPageRoute(builder:(_)=>StudentIDCard(school:'New Iqra Children Academy',student:s)));},itemBuilder:(_)=>const [PopupMenuItem(value:'id',child:Text('View / Print ID Card')),PopupMenuItem(value:'delete',child:Text('Delete Student'))])))),
     if(students.isEmpty)const Padding(padding:EdgeInsets.all(28),child:Center(child:Text('No students registered yet'))),
@@ -1909,7 +1909,48 @@ class SchoolCertificate extends StatelessWidget {
 // ================= PROFESSIONAL PDF DOCUMENTS =================
 pw.Widget _pdfHeader(String school,String heading)=>pw.Column(children:[pw.Text(school,style:pw.TextStyle(fontSize:20,fontWeight:pw.FontWeight.bold,color:PdfColor.fromInt(0xff123b70))),pw.SizedBox(height:4),pw.Text(heading,style:pw.TextStyle(fontSize:14,fontWeight:pw.FontWeight.bold)),pw.Divider(color:PdfColor.fromInt(0xff123b70)),pw.SizedBox(height:10)]);
 Future<void> _printPdf(pw.Document doc)=>Printing.layoutPdf(onLayout:(format)async=>doc.save());
-Future<void> printIdPdf(String school,Map<String,dynamic> s)async{final d=pw.Document();d.addPage(pw.Page(pageFormat:PdfPageFormat.a4,build:(c)=>pw.Center(child:pw.Container(width:300,padding:const pw.EdgeInsets.all(22),decoration:pw.BoxDecoration(border:pw.Border.all(color:PdfColor.fromInt(0xff123b70),width:2),borderRadius:pw.BorderRadius.circular(12)),child:pw.Column(mainAxisSize:pw.MainAxisSize.min,children:[_pdfHeader(school,'STUDENT ID CARD'),pw.Text('${s['name']}',style:pw.TextStyle(fontSize:18,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:10),...['Father: ${s['father']}','Roll No: ${s['roll']}','Class: ${s['class']}','Phone: ${s['phone']}','Admission: ${s['admissionDate']}'].map((x)=>pw.Padding(padding:const pw.EdgeInsets.all(5),child:pw.Align(alignment:pw.Alignment.centerLeft,child:pw.Text(x)))),pw.SizedBox(height:20),pw.Text('Principal Signature: __________________')]))));await _printPdf(d);}
+Future<void> printIdPdf(String school, Map<String, dynamic> s) async {
+  final doc = pw.Document();
+  doc.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      build: (context) => pw.Center(
+        child: pw.Container(
+          width: 300,
+          padding: const pw.EdgeInsets.all(22),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColor.fromInt(0xff123b70), width: 2),
+            borderRadius: pw.BorderRadius.circular(12),
+          ),
+          child: pw.Column(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              _pdfHeader(school, 'STUDENT ID CARD'),
+              pw.Text('${s['name']}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 10),
+              ...[
+                'Father: ${s['father']}',
+                'Roll No: ${s['roll']}',
+                'Class: ${s['class']}',
+                'Phone: ${s['phone']}',
+                'Admission: ${s['admissionDate']}',
+              ].map((value) => pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Align(
+                      alignment: pw.Alignment.centerLeft,
+                      child: pw.Text(value),
+                    ),
+                  )),
+              pw.SizedBox(height: 20),
+              pw.Text('Principal Signature: __________________'),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  await _printPdf(doc);
+}
 Future<void> printDmcPdf(String school,Map<String,dynamic> s,List<Map<String,dynamic>> records)async{final d=pw.Document();final total=records.fold<double>(0,(a,m)=>a+(double.tryParse('${m['total']}')??0));final got=records.fold<double>(0,(a,m)=>a+(double.tryParse('${m['obtained']}')??0));final pct=total==0?0:got/total*100;d.addPage(pw.MultiPage(pageFormat:PdfPageFormat.a4,build:(c)=>[_pdfHeader(school,'DETAILED MARKS CERTIFICATE'),pw.Text('Student: ${s['name']}     Father: ${s['father']}'),pw.Text('Class: ${s['class']}     Roll No: ${s['roll']}'),pw.SizedBox(height:16),pw.Table.fromTextArray(headers:['Subject','Total','Obtained'],data:records.map((m)=>['${m['subject']??m['exam']??''}','${m['total']??0}','${m['obtained']??0}']).toList(),headerDecoration:pw.BoxDecoration(color:PdfColor.fromInt(0xffdce8f5))),pw.SizedBox(height:18),pw.Text('Total Marks: ${total.toStringAsFixed(0)}'),pw.Text('Obtained Marks: ${got.toStringAsFixed(0)}'),pw.Text('Percentage: ${pct.toStringAsFixed(2)}%'),pw.Text('Result: ${pct>=40?'PASS':'FAIL'}'),pw.SizedBox(height:45),pw.Row(mainAxisAlignment:pw.MainAxisAlignment.spaceBetween,children:[pw.Text('Class Teacher: ______________'),pw.Text('Principal: ______________')]) ]));await _printPdf(d);}
 Future<void> printClassResultPdf(String school,String cls,List<Map<String,dynamic>> students,List<Map<String,dynamic>> marks)async{final rows=<List<String>>[];for(final s in students.where((x)=>'${x['class']}'==cls)){final rec=marks.where((m)=>'${m['studentId']}'=='${s['id']}').toList();final total=rec.fold<double>(0,(a,m)=>a+(double.tryParse('${m['total']}')??0));final got=rec.fold<double>(0,(a,m)=>a+(double.tryParse('${m['obtained']}')??0));final pct=total==0?0:got/total*100;rows.add(['${s['roll']}','${s['name']}','${got.toStringAsFixed(0)} / ${total.toStringAsFixed(0)}','${pct.toStringAsFixed(1)}%','${pct>=40?'PASS':'FAIL'}']);}final d=pw.Document();d.addPage(pw.MultiPage(pageFormat:PdfPageFormat.a4,build:(c)=>[_pdfHeader(school,'CLASS $cls — COMBINED RESULT'),pw.Table.fromTextArray(headers:['Roll','Student Name','Obtained / Total','%','Result'],data:rows,headerDecoration:pw.BoxDecoration(color:PdfColor.fromInt(0xffdce8f5))),pw.SizedBox(height:30),pw.Text('Prepared on: ${DateTime.now().toString().substring(0,10)}')]));await _printPdf(d);}
 Future<void> printFeePdf(String school,Map<String,dynamic> s,List<Map<String,dynamic>> fees)async{final received=fees.fold<double>(0,(a,f)=>a+(double.tryParse('${f['amount']}')??0));final monthly=double.tryParse('${s['totalFee']}')??0;final d=pw.Document();d.addPage(pw.MultiPage(pageFormat:PdfPageFormat.a4,build:(c)=>[_pdfHeader(school,'STUDENT FEE CARD'),pw.Text('Student: ${s['name']}     Father: ${s['father']}'),pw.Text('Class: ${s['class']}     Roll: ${s['roll']}'),pw.Text('Monthly Fee: Rs ${monthly.toStringAsFixed(0)}'),pw.SizedBox(height:15),pw.Table.fromTextArray(headers:['Date','Month','Received (Rs.)'],data:fees.map((f)=>['${f['date']}','${f['month']}','${f['amount']}']).toList()),pw.SizedBox(height:15),pw.Text('Total Received: Rs ${received.toStringAsFixed(0)}',style:pw.TextStyle(fontWeight:pw.FontWeight.bold)),pw.Text('Registration Fee: Rs ${s['registrationFee']??0}')]));await _printPdf(d);}
