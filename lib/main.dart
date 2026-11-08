@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(const SchoolManagementApp());
@@ -90,7 +91,49 @@ class _LicensePageState extends State<LicensePage> {
   final keyController = TextEditingController();
 
   String error = '';
+  String deviceId = '';
   static int taps = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    loadDeviceId();
+  }
+
+  Future<void> loadDeviceId() async {
+    final p = await SharedPreferences.getInstance();
+    String? id = p.getString('academy_device_id');
+    if (id == null || id.isEmpty) {
+      final code = List.generate(
+        16,
+        (_) => Random.secure().nextInt(16).toRadixString(16).toUpperCase(),
+      ).join();
+      id = 'SMS-DEVICE-$code';
+      await p.setString('academy_device_id', id);
+    }
+    if (mounted) setState(() => deviceId = id!);
+  }
+
+  Future<void> openWhatsAppSupport() async {
+    final uri = Uri.parse(
+      'https://wa.me/923161847676?text=${Uri.encodeComponent('Assalam-o-Alaikum, I need help with School Management System license. Device ID: $deviceId')}',
+    );
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('WhatsApp could not be opened')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please install WhatsApp or check internet')),
+        );
+      }
+    }
+  }
+
 
   Future<void> activate() async {
     final p = await SharedPreferences.getInstance();
@@ -167,7 +210,47 @@ class _LicensePageState extends State<LicensePage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 22),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Your Device ID',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffeaf1fb),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: blue.withOpacity(0.25)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SelectableText(
+                            deviceId.isEmpty ? 'Generating Device ID...' : deviceId,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Copy Device ID',
+                          onPressed: deviceId.isEmpty
+                              ? null
+                              : () {
+                                  Clipboard.setData(ClipboardData(text: deviceId));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Device ID copied')),
+                                  );
+                                },
+                          icon: const Icon(Icons.copy, color: blue),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   TextField(
                     controller: keyController,
                     decoration: const InputDecoration(
@@ -188,8 +271,29 @@ class _LicensePageState extends State<LicensePage> {
                       error,
                       style: const TextStyle(color: Colors.red),
                     ),
-                  const SizedBox(height: 15),
-                  const Text('License Support: 03161847676'),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'License Support: 03161847676',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: openWhatsAppSupport,
+                        borderRadius: BorderRadius.circular(30),
+                        child: const Padding(
+                          padding: EdgeInsets.all(5),
+                          child: Icon(
+                            Icons.chat,
+                            color: Color(0xff25D366),
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -835,69 +939,6 @@ class _HomePageState extends State<HomePage> {
           ),
 
           const SizedBox(height: 20),
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: blue,
-                child: Icon(Icons.account_tree, color: Colors.white),
-              ),
-              title: const Text(
-                'Organization Workflow',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: const Text(
-                'School hierarchy, departments and staff responsibilities',
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () => setState(() => selected = 9),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  const Text('School Hierarchy Preview', style: TextStyle(fontWeight: FontWeight.bold, color: blue)),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: blue, borderRadius: BorderRadius.circular(9)),
-                    child: const Text('Owner / Director', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                  const Icon(Icons.arrow_downward, color: blue),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFF245A91), borderRadius: BorderRadius.circular(9)),
-                    child: const Text('Principal / Headmaster', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                  const Icon(Icons.arrow_downward, color: blue),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: const [
-                      Chip(label: Text('Academic')),
-                      Chip(label: Text('Administration')),
-                      Chip(label: Text('Accounts')),
-                      Chip(label: Text('HR / Staff')),
-                      Chip(label: Text('Transport')),
-                      Chip(label: Text('Facilities')),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: () => setState(() => selected = 9),
-                    icon: const Icon(Icons.account_tree),
-                    label: const Text('Open Full Organization Chart'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
           const Text('Recent Fee Payments',
             style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
 
@@ -960,14 +1001,13 @@ class _HomePageState extends State<HomePage> {
       TransportModule(records: transport, onSave: (v) async { transport = v; await saveAll(); }),
       SalaryModule(records: salaries, onSave: (v) async { salaries = v; await saveAll(); }),
       SchoolExpensesModule(records: expenses, onSave: (v) async { expenses = v; await saveAll(); }),
-      OrganizationChartPage(school: school),
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(selected == 0
             ? school
-            : ['Home','Students','Fees','Attendance','Exams','Reports','Transport','Staff Salary','School Expenses','Organization Workflow'][selected]),
+            : ['Home','Students','Fees','Attendance','Exams','Reports','Transport','Staff Salary','School Expenses'][selected]),
       ),
 
       drawer: Drawer(
@@ -986,7 +1026,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 9; i++)
               ListTile(
                 leading: Icon([
                   Icons.home,
@@ -998,7 +1038,6 @@ class _HomePageState extends State<HomePage> {
                   Icons.directions_bus,
                   Icons.badge,
                   Icons.account_balance_wallet,
-                  Icons.account_tree,
                 ][i]),
                 title: Text([
                   'Dashboard',
@@ -1010,7 +1049,6 @@ class _HomePageState extends State<HomePage> {
                   'Transport',
                   'Staff Salary',
                   'School Expenses',
-                  'Organization Workflow',
                 ][i]),
                 selected: selected == i,
                 onTap: () {
@@ -2056,130 +2094,4 @@ class SchoolCertificate extends StatelessWidget {
     );
   }
 }
-
-// ================= ORGANIZATION WORKFLOW =================
-// This is an organization chart only. Employee logins are intentionally disabled.
-class OrganizationChartPage extends StatelessWidget {
-  final String school;
-  const OrganizationChartPage({super.key, required this.school});
-
-  Widget _role(String title, String subtitle, {Color color = blue, IconData icon = Icons.person}) {
-    return Container(
-      width: 250,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 5, offset: Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 19,
-            backgroundColor: Colors.white.withOpacity(0.18),
-            child: Icon(icon, color: Colors.white, size: 21),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 3),
-                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _connector() => Container(width: 2, height: 22, color: Colors.blueGrey.shade300);
-
-  Widget _department(String title, String description, IconData icon, Color color, List<String> roles) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              CircleAvatar(backgroundColor: color.withOpacity(0.13), child: Icon(icon, color: color)),
-              const SizedBox(width: 9),
-              Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-            ]),
-            const SizedBox(height: 5),
-            Text(description, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
-            const Divider(height: 18),
-            ...roles.map((role) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                Icon(Icons.subdirectory_arrow_right, size: 16, color: color),
-                const SizedBox(width: 5),
-                Expanded(child: Text(role, style: const TextStyle(fontSize: 13))),
-              ]),
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(school, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: blue)),
-        const SizedBox(height: 5),
-        const Text('ORGANIZATION & STAFF WORKFLOW', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1)),
-        const SizedBox(height: 18),
-        Center(child: _role('Owner / Director', 'Overall control • Final approval', color: const Color(0xFF102E56), icon: Icons.workspace_premium)),
-        Center(child: _connector()),
-        Center(child: _role('Principal / Headmaster', 'Daily school operations • Academic supervision', color: const Color(0xFF174A80), icon: Icons.school)),
-        Center(child: _connector()),
-        const Text('DEPARTMENTS', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: blue, letterSpacing: 1.2)),
-        const SizedBox(height: 10),
-        _department('Academic Department', 'Teaching, classes and student progress', Icons.menu_book, Colors.blue, [
-          'Academic Coordinator', 'Class Incharges', 'Subject Teachers', 'Examination Coordinator',
-        ]),
-        _department('Administration Department', 'Admissions, records and office management', Icons.admin_panel_settings, Colors.indigo, [
-          'Admin Officer', 'Admission / Record Clerk', 'Receptionist', 'Office Assistant',
-        ]),
-        _department('Accounts Department', 'Fee collection, payroll and financial records', Icons.account_balance_wallet, Colors.green, [
-          'Accountant', 'Fee Clerk / Cashier', 'Salary & Expense Record Keeper',
-        ]),
-        _department('Human Resources', 'Staff records, attendance and salary details', Icons.groups, Colors.deepPurple, [
-          'HR / Staff Incharge', 'Staff Attendance Clerk', 'Staff Salary Coordinator',
-        ]),
-        _department('Transport Department', 'Routes, vehicles and student transport', Icons.directions_bus, Colors.orange, [
-          'Transport Incharge', 'Drivers', 'Conductors / Helpers',
-        ]),
-        _department('Facilities & Support', 'Campus cleanliness, safety and maintenance', Icons.handyman, Colors.teal, [
-          'Maintenance Staff', 'Security Guards', 'Cleaners / Support Staff',
-        ]),
-        const SizedBox(height: 12),
-        Card(
-          color: const Color(0xFFEAF1FA),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Icon(Icons.info_outline, color: blue),
-                SizedBox(width: 10),
-                Expanded(child: Text(
-                  'Employee login is disabled as requested. This chart shows reporting lines and responsibilities only. The Owner/Admin continues to manage all records from the main login.',
-                  style: TextStyle(color: Color(0xFF173B65), height: 1.4),
-                )),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
+    
