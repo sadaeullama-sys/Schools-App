@@ -2300,174 +2300,97 @@ class AttendanceModule extends StatelessWidget {
   }
 }
 // ============== EXAMS MODULE ==============
-class ExamsModule extends StatelessWidget {
+
+class ExamsModule extends StatefulWidget {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> marks;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
+  const ExamsModule({super.key, required this.students, required this.marks, required this.onSave});
+  @override
+  State<ExamsModule> createState() => _ExamsModuleState();
+}
 
-  const ExamsModule({
-    super.key,
-    required this.students,
-    required this.marks,
-    required this.onSave,
-  });
+class _ExamsModuleState extends State<ExamsModule> {
+  static const Map<String, List<String>> classSubjects = {
+    'Play Group': ['English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiyat'],
+    'Nursery': ['English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiyat'],
+    'Prep': ['English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiyat'],
+    'First': ['English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiyat'],
+    'Second': ['English', 'Urdu', 'Mathematics', 'General Knowledge', 'Islamiyat'],
+    'Third': ['English', 'Urdu', 'Mathematics', 'Science', 'Islamiyat'],
+    'Fourth': ['English', 'Urdu', 'Mathematics', 'Science', 'Islamiyat', 'Social Studies'],
+    'Fifth': ['English', 'Urdu', 'Mathematics', 'Science', 'Islamiyat', 'Social Studies'],
+    'Sixth': ['English', 'Urdu', 'Mathematics', 'General Science', 'Computer', 'Islamiyat'],
+    'Seventh': ['English', 'Urdu', 'Mathematics', 'General Science', 'Computer', 'Islamiyat'],
+    'Eighth': ['English', 'Urdu', 'Mathematics', 'General Science', 'Computer', 'Islamiyat'],
+    'Ninth': ['English', 'Urdu', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer', 'English', 'Islamiyat'],
+    'Tenth': ['English', 'Urdu', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer', 'Pakistan Studies'],
+  };
 
   Future<void> addMarks(BuildContext context) async {
-    if (students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Register students first'),
-        ),
-      );
+    if (widget.students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register students first')));
       return;
     }
-
-    String studentId = '${students.first['id']}';
-
-    final exam = TextEditingController(
-      text: 'Monthly Test',
-    );
-    final subject = TextEditingController();
+    String studentId = '${widget.students.first['id']}';
+    String examName = 'Monthly Test';
+    String subjectName = '';
     final total = TextEditingController(text: '100');
     final obtained = TextEditingController();
+    final student = widget.students.first;
+    subjectName = (classSubjects['${student['class']}'] ?? ['English', 'Urdu', 'Mathematics', 'Science', 'Islamiyat']).first;
 
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) =>
-            AlertDialog(
-          title: const Text('Add Exam Marks'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: studentId,
-                  decoration: const InputDecoration(
-                    labelText: 'Student',
-                  ),
-                  items: students
-                      .map(
-                        (s) => DropdownMenuItem<String>(
-                          value: '${s['id']}',
-                          child: Text('${s['name']}'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() => studentId = v);
-                    }
-                  },
-                ),
-                TextField(
-                  controller: exam,
-                  decoration: const InputDecoration(
-                    labelText: 'Exam Name',
-                    ),
-                ),
-                TextField(
-                  controller: subject,
-                  decoration: const InputDecoration(
-                    labelText: 'Subject',
-                  ),
-                ),
-                TextField(
-                  controller: total,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Total Marks',
-                  ),
-                ),
-                TextField(
-                  controller: obtained,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Obtained Marks',
-                  ),
-                ),
-              ],
+    final saved = await showDialog<bool>(context: context, builder: (dialogContext) =>
+      StatefulBuilder(builder: (context, setDialogState) {
+        final selected = widget.students.firstWhere((s) => '${s['id']}' == studentId);
+        final subjects = classSubjects['${selected['class']}'] ?? ['English', 'Urdu', 'Mathematics', 'Science', 'Islamiyat'];
+        if (!subjects.contains(subjectName)) subjectName = subjects.first;
+        return AlertDialog(
+          title: const Text('DMC – Enter Subject Marks'),
+          content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String>(
+              value: studentId, decoration: const InputDecoration(labelText: 'Student'),
+              items: widget.students.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text('${s['name']} (${s['class']})'))).toList(),
+              onChanged: (v) { if (v != null) setDialogState(() { studentId = v; subjectName = (classSubjects['${widget.students.firstWhere((s) => '${s['id']}' == v)['class']}'] ?? ['English']).first; }); },
             ),
-          ),
+            TextFormField(initialValue: examName, decoration: const InputDecoration(labelText: 'Exam / امتحان'), onChanged: (v) => examName = v),
+            DropdownButtonFormField<String>(
+              value: subjectName, decoration: const InputDecoration(labelText: 'Pre-selected Class Subject'),
+              items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (v) { if (v != null) setDialogState(() => subjectName = v); },
+            ),
+            TextField(controller: total, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Paper Total Marks')),
+            TextField(controller: obtained, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Obtained Marks')),
+          ])),
           actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, true),
-              child: const Text('Save Marks'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save Marks')),
           ],
-        ),
-      ),
-    );
+        );
+      }));
     final maxMarks = double.tryParse(total.text) ?? 0;
-    final gotMarks =
-        double.tryParse(obtained.text) ?? -1;
-
-    if (saved == true &&
-        subject.text.trim().isNotEmpty &&
-        maxMarks > 0 &&
-        gotMarks >= 0 &&
-        gotMarks <= maxMarks) {
-      final student = students.firstWhere(
-        (s) => '${s['id']}' == studentId,
-      );
-
-      onSave([
-        ...marks,
-        {
-          'studentId': studentId,
-          'studentName': student['name'],
-          'roll': student['roll'],
-          'class': student['class'],
-          'exam': exam.text.trim(),
-          'subject': subject.text.trim(),
-          'total': maxMarks,
-          'obtained': gotMarks,
-          'date':
-              DateTime.now().toString().substring(0, 10),},
-      ]);
+    final gotMarks = double.tryParse(obtained.text) ?? -1;
+    if (saved == true && subjectName.isNotEmpty && examName.trim().isNotEmpty && maxMarks > 0 && gotMarks >= 0 && gotMarks <= maxMarks) {
+      final s = widget.students.firstWhere((s) => '${s['id']}' == studentId);
+      final next = [...widget.marks.where((m) => !('${m['studentId']}' == studentId && '${m['exam']}' == examName.trim() && '${m['subject']}' == subjectName)),
+        {'studentId': studentId, 'studentName': s['name'], 'father': s['father'], 'photoPath': s['photoPath'], 'roll': s['roll'], 'class': s['class'], 'exam': examName.trim(), 'subject': subjectName, 'total': maxMarks, 'obtained': gotMarks, 'date': DateTime.now().toIso8601String().substring(0, 10)}];
+      widget.onSave(next);
+    } else if (saved == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid marks. Obtained marks cannot exceed paper total.')));
     }
-
-    exam.dispose();
-    subject.dispose();
-    total.dispose();
-    obtained.dispose();
+    total.dispose(); obtained.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(14),
-      children: [
-        FilledButton.icon(
-          onPressed: () => addMarks(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Exam Marks'),
-        ),
-        const SizedBox(height: 12),
-        ...marks.reversed.map(
-          (m) => Card(
-            child: ListTile(
-              title: Text(
-                '${m['studentName']} - ${m['subject']}',
-              ),
-              subtitle: Text(
-                '${m['exam']} | ${m['class']}',
-              ),
-              trailing: Text(
-                '${m['obtained']} / ${m['total']}',
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
+    FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add / Edit DMC Subject Marks')),
+    const SizedBox(height: 12),
+    ...widget.marks.reversed.map((m) => Card(child: ListTile(
+      title: Text('${m['studentName']} - ${m['subject']}'),
+      subtitle: Text('${m['exam']} | ${m['class']} | Roll: ${m['roll']}'),
+      trailing: Text('${m['obtained']} / ${m['total']}'),
+    ))),
+  ]);
 }
 
 // ================= MISSING MODULES ADDED =================
@@ -2656,6 +2579,12 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
       }
 
       if (kind == 'ID CARD') {
+        final studentPayload = jsonEncode({
+          'studentId': s['id'], 'name': s['name'], 'father': s['father'],
+          'roll': s['roll'], 'class': s['class'], 'phone': s['phone'],
+          'address': s['address'] ?? '', 'school': widget.school,
+        });
+        // Front side
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
           width: 350, padding: const pw.EdgeInsets.all(18),
           decoration: pw.BoxDecoration(
@@ -2676,7 +2605,27 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.SizedBox(height: 14),
             pw.Text('Admission: ${s['admissionDate'] ?? ''}'),
             pw.SizedBox(height: 14),
+            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+            pw.Text('Teacher Signature: __________________'),
             pw.Text('Principal Signature: __________________'),
+          ]),
+          ]),
+        ))));
+        // Back side: scannable QR contains the student's key details.
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
+          width: 350, padding: const pw.EdgeInsets.all(20),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2), borderRadius: pw.BorderRadius.circular(14)),
+          child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+            pw.Text('STUDENT INFORMATION', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.SizedBox(height: 14),
+            pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: studentPayload, width: 125, height: 125),
+            pw.SizedBox(height: 10),
+            pw.Text('Address: ${s['address'] ?? 'Not provided'}', textAlign: pw.TextAlign.center),
+            pw.Text('Emergency Contact: ${s['emergency'] ?? s['emergencyPhone'] ?? 'Not provided'}'),
+            pw.Text('Expiry Date: ${s['cardExpiry'] ?? '____________'}'),
+            pw.SizedBox(height: 10),
+            pw.Text('Scan QR code to view student record', style: const pw.TextStyle(fontSize: 9)),
+            pw.Text(widget.school, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
           ]),
         ))));
       } else if (kind == 'FEE SLIP') {
@@ -2701,9 +2650,10 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Class: ${s['class']}    Roll: ${s['roll']}'),
             pw.SizedBox(height: 14),
             pw.Table.fromTextArray(headers: ['Fee Description', 'Amount (Rs.)'], data: [
+              ['Previous Balance', '${s['oldBalance'] ?? s['previousBalance'] ?? 0}'],
               ['Monthly Tuition Fee', monthly.toStringAsFixed(0)],
               ['Received', paid.toStringAsFixed(0)],
-              ['Balance Due', due.toStringAsFixed(0)],
+              ['Balance Due', (due + (double.tryParse('${s['oldBalance'] ?? s['previousBalance'] ?? 0}') ?? 0)).toStringAsFixed(0)],
             ]),
             pw.SizedBox(height: 12),
             pw.Text('Payments:'),
@@ -2735,6 +2685,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Father Name: ${s['father'] ?? ''}'),
             pw.Text('Class: ${s['class']}    Roll No: ${s['roll']}'),
             pw.Text('Exam: $selectedExam     Session: ${DateTime.now().year}'),
+            if (photo != null) pw.Align(alignment: pw.Alignment.centerRight, child: pw.Container(width: 68, height: 78, child: pw.Image(photo, fit: pw.BoxFit.cover))),
             pw.SizedBox(height: 16),
             pw.Table.fromTextArray(
               headers: ['Sr.', 'Subject', 'Total', 'Obtained', '%', 'Grade'],
@@ -2755,8 +2706,8 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Result: ${rows.isEmpty ? 'NO MARKS' : percent >= 33 ? 'PASS' : 'FAIL'}'),
             pw.Spacer(),
             pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-              pw.Text('Class Teacher: ______________'),
-              pw.Text('Principal: ______________'),
+              pw.Text('Teacher Signature: __________________'),
+              pw.Text('Principal Signature: __________________'),
             ]),
             pw.SizedBox(height: 12),
             pw.Center(child: pw.Text('School-issued result document', style: const pw.TextStyle(fontSize: 9))),
@@ -2766,14 +2717,22 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(35), build: (_) => pw.Center(child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
           pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
           pw.SizedBox(height: 28),
+          pw.Text('REGISTRATION NO: __________________'),
+          pw.SizedBox(height: 10),
           pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          if (photo != null) pw.Container(width: 85, height: 95, child: pw.Image(photo, fit: pw.BoxFit.cover)),
           pw.SizedBox(height: 25),
           pw.Text('This is to certify that ${s['name']}, son/daughter of ${s['father']}, Roll No. ${s['roll']}, Class ${s['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
           pw.SizedBox(height: 24),
           pw.Text('Date of Birth: ${s['dob'] ?? ''}'),
           pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
           pw.SizedBox(height: 45),
-          pw.Text('Principal Signature: __________________'),
+          pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+            pw.Text('Teacher Signature: __________________'),
+            pw.Text('Principal Signature: __________________'),
+          ]),
+          pw.SizedBox(height: 12),
+          pw.Text('School Seal: __________________'),
         ]))));
       }
     }
