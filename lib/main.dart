@@ -579,9 +579,7 @@ class _LoginPageState extends State<LoginPage> {
                         Row(children: [
                           Checkbox(value: rememberMe, onChanged: (v) => setState(() => rememberMe = v ?? false)),
                           const Text('Remember Me'), const Spacer(),
-                          TextButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Password reset کے لیے Admin سے رابطہ کریں۔'))),
-                            child: const Text('Forgot Password?')),
+                          TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPasswordResetPage())), child: const Text('Forgot Password?')),
                         ]),
                         if (error.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -606,6 +604,64 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+}
+
+// ============== ADMIN CONTROLLED PASSWORD RESET ==============
+class AdminPasswordResetPage extends StatefulWidget {
+  const AdminPasswordResetPage({super.key});
+  @override
+  State<AdminPasswordResetPage> createState() => _AdminPasswordResetPageState();
+}
+
+class _AdminPasswordResetPageState extends State<AdminPasswordResetPage> {
+  final adminUser = TextEditingController();
+  final adminPass = TextEditingController();
+  final newPass = TextEditingController();
+  final confirmPass = TextEditingController();
+  String message = '';
+  bool done = false;
+
+  Future<void> resetPassword() async {
+    if (adminUser.text.trim() != adminUsername || adminPass.text != adminPassword) {
+      setState(() => message = 'Admin username یا password درست نہیں ہے۔');
+      return;
+    }
+    if (newPass.text.trim().length < 6 || newPass.text != confirmPass.text) {
+      setState(() => message = 'نیا پاس ورڈ کم از کم 6 حروف کا ہو اور دونوں پاس ورڈ ایک جیسے ہوں۔');
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('academy_customer_password', newPass.text);
+    if (!mounted) return;
+    setState(() { done = true; message = 'School user password کامیابی سے تبدیل ہوگیا۔'; });
+  }
+
+  @override
+  void dispose() {
+    adminUser.dispose(); adminPass.dispose(); newPass.dispose(); confirmPass.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Admin Password Reset')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const Icon(Icons.admin_panel_settings, size: 62, color: navy),
+      const Text('صرف Admin اسکول اکاؤنٹ کا پاس ورڈ تبدیل کر سکتا ہے۔', textAlign: TextAlign.center),
+      const SizedBox(height: 18),
+      TextField(controller: adminUser, decoration: const InputDecoration(labelText: 'Admin Username')),
+      const SizedBox(height: 10),
+      TextField(controller: adminPass, obscureText: true, decoration: const InputDecoration(labelText: 'Admin Password')),
+      const Divider(height: 28),
+      TextField(controller: newPass, obscureText: true, decoration: const InputDecoration(labelText: 'New School Login Password')),
+      const SizedBox(height: 10),
+      TextField(controller: confirmPass, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm New Password')),
+      const SizedBox(height: 14),
+      if (message.isNotEmpty) Text(message, style: TextStyle(color: done ? Colors.green : Colors.red)),
+      FilledButton.icon(onPressed: resetPassword, icon: const Icon(Icons.password), label: const Text('Verify Admin & Reset Password')),
+      if (done) OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Back to Login')),
+    ]),
+  );
 }
 
 // ================= ADMIN LOGIN =================
@@ -850,6 +906,9 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 // ================= HOME DASHBOARD DATA =================
 
 const schoolClasses = [
+  'Play Group',
+  'Nursery',
+  'Prep',
   'First',
   'Second',
   'Third',
@@ -1313,6 +1372,13 @@ class _HomePageState extends State<HomePage> {
         marks: marks,
       ),
 
+      ClassDocumentsModule(
+        school: school,
+        students: students,
+        fees: fees,
+        marks: marks,
+      ),
+
       TransportModule(
         records: transport,
         onSave: (v) async {
@@ -1347,6 +1413,7 @@ class _HomePageState extends State<HomePage> {
       'Attendance',
       'Exams / DMC',
       'Reports',
+      'Class-wise Cards & Slips',
       'Transport',
       'Staff Salary',
       'School Expenses',
@@ -1360,6 +1427,7 @@ class _HomePageState extends State<HomePage> {
       Icons.fact_check,
       Icons.school,
       Icons.picture_as_pdf,
+      Icons.card_membership,
       Icons.directions_bus,
       Icons.badge,
       Icons.account_balance_wallet,
@@ -1488,6 +1556,7 @@ class StudentsModule extends StatelessWidget {
 
     String cls = schoolClasses.first;
     String gender = 'Male';
+    String photoPath = '';
 
     final formKey = GlobalKey<FormState>();
 
@@ -1504,9 +1573,23 @@ class StudentsModule extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircleAvatar(
-                      radius: 38,
-                      child: Icon(Icons.person_add, size: 38),
+                    CircleAvatar(
+                      radius: 42,
+                      backgroundImage: photoPath.isNotEmpty ? FileImage(File(photoPath)) : null,
+                      child: photoPath.isEmpty ? const Icon(Icons.person_add, size: 38) : null,
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final picked = await ImagePicker().pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 75,
+                          maxWidth: 900,
+                        );
+                        if (picked != null) setDialogState(() => photoPath = picked.path);
+                      },
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Upload Student Photo'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -1641,7 +1724,7 @@ class StudentsModule extends StatelessWidget {
         'totalFee': monthlyFee.text.trim(),
         'registrationFee': '0',
         'guardian': '',
-        'photoPath': '',
+        'photoPath': photoPath,
         'admissionDate':
             DateTime.now().toString().substring(0, 10),
       };
@@ -1672,8 +1755,11 @@ class StudentsModule extends StatelessWidget {
         ...students.map(
           (s) => Card(
             child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.person),
+              leading: CircleAvatar(
+                backgroundImage: (s['photoPath'] != null && '${s['photoPath']}'.isNotEmpty && File('${s['photoPath']}').existsSync())
+                    ? FileImage(File('${s['photoPath']}')) : null,
+                child: (s['photoPath'] == null || '${s['photoPath']}'.isEmpty || !File('${s['photoPath']}').existsSync())
+                    ? const Icon(Icons.person) : null,
               ),
               title: Text('${s['name']}'),
               subtitle: Text(
@@ -2328,6 +2414,115 @@ class _SimpleRecordPage extends StatelessWidget {
   }
 }
 
+class ClassDocumentsModule extends StatefulWidget {
+  final String school;
+  final List<Map<String, dynamic>> students, fees, marks;
+  const ClassDocumentsModule({super.key, required this.school, required this.students, required this.fees, required this.marks});
+  @override
+  State<ClassDocumentsModule> createState() => _ClassDocumentsModuleState();
+}
+
+class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
+  String selectedClass = 'First';
+  String selectedExam = 'All Exams';
+  List<Map<String, dynamic>> get classStudents => widget.students.where((s) => '${s['class']}' == selectedClass).toList();
+
+  Future<void> makeClassPdf(String kind) async {
+    final list = classStudents;
+    if (list.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس کلاس میں کوئی طالب علم موجود نہیں۔')));
+      return;
+    }
+    final doc = pw.Document();
+    for (final student in list) {
+      if (kind == 'ID CARD') {
+        pw.MemoryImage? photo;
+        final path = '${student['photoPath'] ?? ''}';
+        if (path.isNotEmpty && File(path).existsSync()) photo = pw.MemoryImage(File(path).readAsBytesSync());
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, build: (_) => pw.Center(child: pw.Container(
+          width: 340, padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2), borderRadius: pw.BorderRadius.circular(12)),
+          child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+            pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.SizedBox(height: 8), pw.Text('STUDENT ID CARD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+            pw.SizedBox(height: 10), if (photo != null) pw.Container(width: 78, height: 88, child: pw.Image(photo, fit: pw.BoxFit.cover)),
+            pw.SizedBox(height: 8), pw.Text('${student['name']}', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Father: ${student['father'] ?? ''}'), pw.Text('Roll: ${student['roll'] ?? ''}'),
+            pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('DOB: ${student['dob'] ?? ''}'),
+            pw.Text('Contact: ${student['phone'] ?? ''}'), pw.SizedBox(height: 12), pw.Text('Principal Signature: __________________'),
+          ]),
+        ))));
+      } else if (kind == 'FEE SLIP') {
+        final id = '${student['id']}';
+        final payments = widget.fees.where((f) => '${f['studentId']}' == id).toList();
+        final currentMonth = DateTime.now().toString().substring(0, 7);
+        final paid = payments.where((f) => '${f['month'] ?? ''}' == currentMonth).fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
+        final monthly = double.tryParse('${student['totalFee'] ?? 0}') ?? 0;
+        final balance = (monthly - paid).clamp(0, double.infinity).toDouble();
+        doc.addPage(pw.Page(build: (_) => pw.Padding(padding: const pw.EdgeInsets.all(28), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 21, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+          pw.Center(child: pw.Text('STUDENT FEE VOUCHER / FEE SLIP')), pw.Divider(thickness: 2),
+          pw.Text('Voucher Date: ${DateTime.now().toString().substring(0,10)}'), pw.SizedBox(height: 10),
+          pw.Text('Student: ${student['name']}'), pw.Text('Father: ${student['father'] ?? ''}'),
+          pw.Text('Class: ${student['class']}    Roll No: ${student['roll']}'), pw.SizedBox(height: 18),
+          pw.Table.fromTextArray(headers: ['Fee Detail', 'Amount (Rs.)'], data: [
+            ['Monthly Fee', monthly.toStringAsFixed(0)], ['Paid to Date', paid.toStringAsFixed(0)], ['Balance Due', balance.toStringAsFixed(0)],
+          ]), pw.SizedBox(height: 30), pw.Text('Cashier Signature: __________________     Parent Signature: __________________'),
+          pw.SizedBox(height: 20), pw.Text('Please pay the outstanding amount at the school office.'),
+        ]))));
+      } else if (kind == 'DMC') {
+        final rows = widget.marks.where((m) => '${m['studentId']}' == '${student['id']}' && (selectedExam == 'All Exams' || '${m['exam']}' == selectedExam)).toList();
+        final total = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
+        final obtained = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['obtained']}') ?? 0));
+        final percent = total > 0 ? obtained / total * 100 : 0.0;
+        final grade = percent >= 80 ? 'A+' : percent >= 70 ? 'A' : percent >= 60 ? 'B' : percent >= 50 ? 'C' : 'Needs Improvement';
+        doc.addPage(pw.Page(build: (_) => pw.Padding(padding: const pw.EdgeInsets.all(24), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 21, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+          pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE')), pw.Divider(thickness: 2),
+          pw.Text('Student: ${student['name']}     Roll: ${student['roll']}'), pw.Text('Father: ${student['father']}     Class: ${student['class']}'),
+          pw.Text('Exam: ${selectedExam == 'All Exams' ? 'All Exams' : selectedExam}'), pw.SizedBox(height: 14),
+          pw.Table.fromTextArray(headers: ['Subject', 'Total', 'Obtained', '%'], data: rows.map((m) { final t = double.tryParse('${m['total']}') ?? 0; final o = double.tryParse('${m['obtained']}') ?? 0; return ['${m['subject']}', t.toStringAsFixed(0), o.toStringAsFixed(0), t > 0 ? '${(o/t*100).toStringAsFixed(1)}%' : '0%']; }).toList()),
+          pw.SizedBox(height: 12), pw.Text('Total: ${total.toStringAsFixed(0)}    Obtained: ${obtained.toStringAsFixed(0)}    Percentage: ${percent.toStringAsFixed(1)}%'),
+          pw.Text('Grade: $grade    Result: ${rows.isEmpty ? 'NO MARKS ENTERED' : (percent >= 33 ? 'PASS' : 'FAIL')}'),
+          pw.Spacer(), pw.Text('Class Teacher: __________________      Principal: __________________'),
+        ]))));
+      } else {
+        doc.addPage(pw.Page(build: (_) => pw.Center(child: pw.Padding(padding: const pw.EdgeInsets.all(35), child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+          pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+          pw.SizedBox(height: 35), pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 25), pw.Text('This is to certify that ${student['name']}, son/daughter of ${student['father']}, Roll No. ${student['roll']}, Class ${student['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
+          pw.SizedBox(height: 30), pw.Text('Date: ${DateTime.now().toString().substring(0,10)}'), pw.SizedBox(height: 35), pw.Text('Principal Signature: __________________'),
+        ])))));
+      }
+    }
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final examNames = widget.marks.map((m) => '${m['exam']}').toSet().toList();
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      const Text('Class-wise Documents & Bulk Printing', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy)),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(value: selectedClass, decoration: const InputDecoration(labelText: 'Select Class'), items: schoolClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) => setState(() => selectedClass = v ?? schoolClasses.first)),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(value: selectedExam, decoration: const InputDecoration(labelText: 'Select Exam for DMC'), items: ['All Exams', ...examNames].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) => setState(() => selectedExam = v ?? 'All Exams')),
+      const SizedBox(height: 12),
+      Card(child: ListTile(leading: const Icon(Icons.groups, color: blue), title: Text('$selectedClass Students'), trailing: Text('${classStudents.length}'))),
+      const SizedBox(height: 8),
+      for (final item in [
+        ('STUDENT ID CARD', 'Generate all ID Cards (PDF)', Icons.badge),
+        ('FEE SLIP', 'Generate all Fee Slips (PDF)', Icons.receipt_long),
+        ('DMC', 'Generate all DMCs (PDF)', Icons.school),
+        ('LEAVING', 'Generate Leaving Certificates (PDF)', Icons.workspace_premium),
+      ])
+        Card(child: ListTile(leading: Icon(item.$3, color: blue), title: Text(item.$2), subtitle: Text('Selected class: $selectedClass'), trailing: const Icon(Icons.picture_as_pdf), onTap: () => makeClassPdf(item.$1))),
+      const SizedBox(height: 8),
+      const Text('ہر PDF میں منتخب کلاس کے ہر طالب علم کی الگ دستاویز بنے گی۔ DMC کے لیے پہلے Exams میں marks درج کریں۔', style: TextStyle(color: Colors.black54)),
+    ]);
+  }
+}
+
 class StudentIDCard extends StatelessWidget {
   final String school;
   final Map<String, dynamic> student;
@@ -2335,12 +2530,16 @@ class StudentIDCard extends StatelessWidget {
 
   Future<void> printCard() async {
     final doc = pw.Document();
+    final path = '${student['photoPath'] ?? ''}';
+    pw.MemoryImage? photo;
+    if (path.isNotEmpty && File(path).existsSync()) photo = pw.MemoryImage(File(path).readAsBytesSync());
     doc.addPage(pw.Page(build: (context) => pw.Center(child: pw.Container(
       width: 300, padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(border: pw.Border.all(width: 2, color: PdfColors.blue900), borderRadius: pw.BorderRadius.circular(12)),
       child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
         pw.Text(school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 10), pw.Text('STUDENT ID CARD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        if (photo != null) pw.Container(width: 70, height: 80, child: pw.Image(photo, fit: pw.BoxFit.cover)),
         pw.Divider(), pw.Text('Name: ${student['name'] ?? ''}'),
         pw.Text('Father: ${student['father'] ?? ''}'), pw.Text('Roll: ${student['roll'] ?? ''}'),
         pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}'),
@@ -2350,15 +2549,19 @@ class StudentIDCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Student ID Card'), actions: [IconButton(onPressed: printCard, icon: const Icon(Icons.picture_as_pdf))]),
-    body: Center(child: Card(child: Container(width: 330, padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.school, size: 42, color: blue), Text(school, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
-      const Divider(height: 25), const CircleAvatar(radius: 35, child: Icon(Icons.person, size: 35)),
-      const SizedBox(height: 12), Text('${student['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      Text('Father: ${student['father']}'), Text('Roll: ${student['roll']}'), Text('Class: ${student['class']}'), Text('Phone: ${student['phone']}'),
-    ])))),
-  );
+  Widget build(BuildContext context) {
+    final path = '${student['photoPath'] ?? ''}';
+    final hasPhoto = path.isNotEmpty && File(path).existsSync();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Student ID Card'), actions: [IconButton(onPressed: printCard, icon: const Icon(Icons.picture_as_pdf))]),
+      body: Center(child: Card(child: Container(width: 330, padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.school, size: 42, color: blue), Text(school, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19)),
+        const Divider(height: 25), CircleAvatar(radius: 35, backgroundImage: hasPhoto ? FileImage(File(path)) : null, child: hasPhoto ? null : const Icon(Icons.person, size: 35)),
+        const SizedBox(height: 12), Text('${student['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text('Father: ${student['father']}'), Text('Roll: ${student['roll']}'), Text('Class: ${student['class']}'), Text('Phone: ${student['phone']}'),
+      ])))),
+    );
+  }
 }
 
 class ReportsModule extends StatelessWidget {
