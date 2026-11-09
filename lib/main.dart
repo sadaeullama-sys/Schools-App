@@ -1814,9 +1814,10 @@ class StudentsModule extends StatelessWidget {
   }
 }
 
-// ============== FEES MODULE ==============
 
-class FeesModule extends StatelessWidget {
+// ============== MONTHLY FEES MODULE ==============
+
+class FeesModule extends StatefulWidget {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> fees;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
@@ -1828,164 +1829,265 @@ class FeesModule extends StatelessWidget {
     required this.onSave,
   });
 
-  Future<void> collect(BuildContext context) async {
-    if (students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Register a student first'),
-        ),
-      );
-      return;
-    }
+  @override
+  State<FeesModule> createState() => _FeesModuleState();
+}
 
+class _FeesModuleState extends State<FeesModule> {
+  String selectedClass = 'All';
+  DateTime selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  String money(num value) => 'Rs ${value.toStringAsFixed(0)}';
+  String monthKey(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}';
+
+  List<Map<String, dynamic>> get visibleStudents => widget.students.where((s) =>
+      selectedClass == 'All' || '${s['class']}' == selectedClass).toList();
+
+  double paidFor(String studentId, String month) => widget.fees
+      .where((f) => '${f['studentId']}' == studentId && '${f['month']}' == month)
+      .fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
+
+  double monthlyFee(Map<String, dynamic> s) =>
+      double.tryParse('${s['totalFee'] ?? 0}') ?? 0;
+
+  Future<DateTime?> chooseDate(DateTime initial) => showDatePicker(
+    context: context,
+    initialDate: initial,
+    firstDate: DateTime(2020),
+    lastDate: DateTime(2040),
+    helpText: 'Select fee month / date',
+  );
+
+  Future<void> collect(Map<String, dynamic> student) async {
     final amount = TextEditingController();
-    final month = TextEditingController(
-      text: DateTime.now().toString().substring(0, 7),
-    );
-
-    String selectedId = '${students.first['id']}';
-    String feeType = 'Monthly';
-
-    final saved = await showDialog<bool>(
+    final note = TextEditingController();
+    DateTime paymentDate = DateTime.now();
+    DateTime dueDate = DateTime(selectedMonth.year, selectedMonth.month, 10);
+    String type = 'Monthly Fee';
+    final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Collect Student Fee'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedId,
-                  decoration: const InputDecoration(
-                    labelText: 'Student',
-                  ),
-                  items: students
-                      .map(
-                        (s) => DropdownMenuItem<String>(
-                          value: '${s['id']}',
-                          child: Text('${s['name']}'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() => selectedId = v);
-                    }
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  value: feeType,
-                  decoration: const InputDecoration(
-                    labelText: 'Fee Type',
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Monthly',
-                      child: Text('Monthly'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Weekly',
-                      child: Text('Weekly'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Admission',
-                      child: Text('Admission'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() => feeType = v);
-                    }
-                  },
-                ),
-                TextField(
-                  controller: amount,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Received Amount (Rs)',
-                  ),
-                ),
-                TextField(
-                  controller: month,
-                  decoration: const InputDecoration(
-                    labelText: 'Month / Week',
-                  ),
-                ),
-              ],
+          title: Text('Fee Payment - ${student['name']}'),
+          content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Class: ${student['class']}  |  Roll: ${student['roll']}'),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: type,
+              decoration: const InputDecoration(labelText: 'Fee Type'),
+              items: const ['Monthly Fee', 'Admission Fee', 'Transport Fee', 'Other']
+                  .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              onChanged: (v) => setDialogState(() => type = v ?? type),
             ),
-          ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Fee Month'),
+              subtitle: Text(monthKey(selectedMonth)),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: selectedMonth,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                  helpText: 'Choose any date in the fee month',
+                );
+                if (d != null) setState(() => selectedMonth = DateTime(d.year, d.month));
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Payment Date'),
+              subtitle: Text(paymentDate.toString().substring(0, 10)),
+              trailing: const Icon(Icons.event),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: paymentDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                );
+                if (d != null) setDialogState(() => paymentDate = d);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Due Date'),
+              subtitle: Text(dueDate.toString().substring(0, 10)),
+              trailing: const Icon(Icons.event_available),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: dueDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                );
+                if (d != null) setDialogState(() => dueDate = d);
+              },
+            ),
+            TextField(
+              controller: amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Received Amount (Rs)',
+                helperText: 'Monthly fee: ${money(monthlyFee(student))}',
+              ),
+            ),
+            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note / Remarks')),
+          ])),
           actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, true),
-              child: const Text('Save Payment'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save Payment')),
           ],
         ),
       ),
     );
 
-    final paid = double.tryParse(amount.text) ?? 0;
-
-    if (saved == true && paid > 0) {
-      final student = students.firstWhere(
-        (s) => '${s['id']}' == selectedId,
-      );
-
-      onSave([
-        ...fees,
+    final received = double.tryParse(amount.text.trim()) ?? 0;
+    if (ok == true && received > 0) {
+      final m = monthKey(selectedMonth);
+      widget.onSave([
+        ...widget.fees,
         {
+          'id': DateTime.now().microsecondsSinceEpoch.toString(),
           'studentId': student['id'],
           'studentName': student['name'],
+          'father': student['father'],
           'roll': student['roll'],
           'class': student['class'],
-          'amount': paid,
-          'feeType': feeType,
-          'month': month.text.trim(),
-          'date':
-              DateTime.now().toString().substring(0, 10),
-        },
+          'amount': received,
+          'feeType': type,
+          'month': m,
+          'date': paymentDate.toString().substring(0, 10),
+          'dueDate': dueDate.toString().substring(0, 10),
+          'note': note.text.trim(),
+        }
       ]);
     }
-
     amount.dispose();
-    month.dispose();
+    note.dispose();
+  }
+
+  Future<void> printSlip(Map<String, dynamic> s) async {
+    final m = monthKey(selectedMonth);
+    final monthly = monthlyFee(s);
+    final paid = paidFor('${s['id']}', m);
+    final due = (monthly - paid).clamp(0, double.infinity).toDouble();
+    final payments = widget.fees.where((f) =>
+      '${f['studentId']}' == '${s['id']}' && '${f['month']}' == m).toList();
+    final doc = pw.Document();
+    doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, margin: const pw.EdgeInsets.all(24), build: (_) =>
+      pw.Container(
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Center(child: pw.Text('NEW IQRA CHILDREN ACADEMY', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+          pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+          pw.Divider(thickness: 2),
+          pw.Text('Voucher Date: ${DateTime.now().toString().substring(0,10)}'),
+          pw.Text('Fee Month: $m'),
+          pw.SizedBox(height: 12),
+          pw.Text('Student: ${s['name']}'),
+          pw.Text('Father: ${s['father'] ?? ''}'),
+          pw.Text('Class: ${s['class']}     Roll: ${s['roll']}'),
+          pw.SizedBox(height: 15),
+          pw.Table.fromTextArray(
+            headers: ['Description', 'Amount (Rs.)'],
+            data: [
+              ['Monthly Fee', monthly.toStringAsFixed(0)],
+              ['Received This Month', paid.toStringAsFixed(0)],
+              ['Remaining Balance', due.toStringAsFixed(0)],
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Text('Payment entries:'),
+          ...payments.map((p) => pw.Text('${p['date']}  -  Rs ${p['amount']} (${p['feeType'] ?? 'Fee'})')),
+          pw.Spacer(),
+          pw.Text('Cashier Signature: __________________'),
+          pw.SizedBox(height: 10),
+          pw.Text('Parent Signature: __________________'),
+          pw.SizedBox(height: 10),
+          pw.Center(child: pw.Text('Please keep this voucher for your record.', style: const pw.TextStyle(fontSize: 9))),
+        ]),
+      ),
+    ));
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(14),
-      children: [
-        FilledButton.icon(
-          onPressed: () => collect(context),
-          icon: const Icon(Icons.payments),
-          label: const Text('Collect Fee'),
-        ),
-        const SizedBox(height: 12),
-        ...fees.reversed.map(
-          (f) => Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: Text('${f['studentName']}'),
-              subtitle: Text(
-                '${f['feeType'] ?? 'Monthly'} | '
-                '${f['month']} | ${f['date']}',
-              ),
-              trailing: Text('Rs ${f['amount']}'),
+    final m = monthKey(selectedMonth);
+    final expected = visibleStudents.fold<double>(0, (a, s) => a + monthlyFee(s));
+    final received = visibleStudents.fold<double>(0, (a, s) => a + paidFor('${s['id']}', m));
+    final dueTotal = (expected - received).clamp(0, double.infinity).toDouble();
+    return ListView(padding: const EdgeInsets.all(14), children: [
+      const Text('Monthly Fee Management', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: navy)),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        value: selectedClass,
+        decoration: const InputDecoration(labelText: 'Filter by Class'),
+        items: ['All', ...schoolClasses].map((c) => DropdownMenuItem(value: c, child: Text(c == 'All' ? 'All Classes' : c))).toList(),
+        onChanged: (v) => setState(() => selectedClass = v ?? 'All'),
+      ),
+      Card(child: ListTile(
+        leading: const Icon(Icons.calendar_month, color: blue),
+        title: const Text('Selected Fee Month'),
+        subtitle: Text(m),
+        trailing: const Icon(Icons.edit_calendar),
+        onTap: () async {
+          final d = await chooseDate(selectedMonth);
+          if (d != null) setState(() => selectedMonth = DateTime(d.year, d.month));
+        },
+      )),
+      Row(children: [
+        _feeSummary('Expected', expected, Colors.blue),
+        _feeSummary('Received', received, Colors.green),
+        _feeSummary('Due', dueTotal, Colors.red),
+      ]),
+      const SizedBox(height: 10),
+      for (final s in visibleStudents) Builder(builder: (context) {
+        final paid = paidFor('${s['id']}', m);
+        final fee = monthlyFee(s);
+        final due = (fee - paid).clamp(0, double.infinity).toDouble();
+        return Card(child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(child: Text('${s['name']}'.isNotEmpty ? '${s['name']}'.substring(0,1).toUpperCase() : '?')),
+              title: Text('${s['name']}'),
+              subtitle: Text('${s['class']} • Roll ${s['roll']} • Fee month $m'),
+              trailing: Text(money(due), style: TextStyle(color: due > 0 ? Colors.red : Colors.green, fontWeight: FontWeight.bold)),
             ),
-          ),
-        ),
-      ],
-    );
+            Row(children: [
+              Expanded(child: Text('Fee: ${money(fee)}')),
+              Expanded(child: Text('Paid: ${money(paid)}')),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: () => collect(s), icon: const Icon(Icons.add_card), label: const Text('Receive Fee'))),
+              const SizedBox(width: 8),
+              Expanded(child: FilledButton.tonalIcon(onPressed: () => printSlip(s), icon: const Icon(Icons.receipt_long), label: const Text('Print Slip'))),
+            ]),
+          ]),
+        ));
+      }),
+      if (visibleStudents.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No students in this class.')),
+    ]);
   }
+
+  Widget _feeSummary(String title, double amount, Color color) => Expanded(
+    child: Card(child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(children: [
+        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        FittedBox(child: Text(money(amount), style: const TextStyle(fontWeight: FontWeight.bold))),
+      ]),
+    )),
+  );
 }
+
 
 // ============== ATTENDANCE MODULE ==============
 
@@ -2414,10 +2516,14 @@ class _SimpleRecordPage extends StatelessWidget {
   }
 }
 
+
+// ============== CLASS-WISE AUTO DOCUMENTS ==============
+
 class ClassDocumentsModule extends StatefulWidget {
   final String school;
   final List<Map<String, dynamic>> students, fees, marks;
   const ClassDocumentsModule({super.key, required this.school, required this.students, required this.fees, required this.marks});
+
   @override
   State<ClassDocumentsModule> createState() => _ClassDocumentsModuleState();
 }
@@ -2425,7 +2531,27 @@ class ClassDocumentsModule extends StatefulWidget {
 class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
   String selectedClass = 'First';
   String selectedExam = 'All Exams';
-  List<Map<String, dynamic>> get classStudents => widget.students.where((s) => '${s['class']}' == selectedClass).toList();
+  DateTime feeMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
+  List<Map<String, dynamic>> get classStudents => widget.students
+      .where((s) => '${s['class']}' == selectedClass).toList();
+
+  String get monthKey => '${feeMonth.year}-${feeMonth.month.toString().padLeft(2, '0')}';
+
+  double feeOf(Map<String, dynamic> s) => double.tryParse('${s['totalFee'] ?? 0}') ?? 0;
+
+  double paidOf(Map<String, dynamic> s) => widget.fees.where((f) =>
+      '${f['studentId']}' == '${s['id']}' && '${f['month']}' == monthKey)
+      .fold<double>(0, (a, f) => a + (double.tryParse('${f['amount']}') ?? 0));
+
+  Future<void> chooseFeeMonth() async {
+    final d = await showDatePicker(
+      context: context, initialDate: feeMonth,
+      firstDate: DateTime(2020), lastDate: DateTime(2040),
+      helpText: 'Select month for fee vouchers',
+    );
+    if (d != null) setState(() => feeMonth = DateTime(d.year, d.month));
+  }
 
   Future<void> makeClassPdf(String kind) async {
     final list = classStudents;
@@ -2433,66 +2559,139 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس کلاس میں کوئی طالب علم موجود نہیں۔')));
       return;
     }
+    if (kind == 'DMC' && !widget.marks.any((m) => '${m['class']}' == selectedClass)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس کلاس کے امتحانی نمبر پہلے درج کریں۔')));
+      return;
+    }
+
     final doc = pw.Document();
-    for (final student in list) {
+    for (final s in list) {
+      final imagePath = '${s['photoPath'] ?? ''}';
+      pw.MemoryImage? photo;
+      if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
+        photo = pw.MemoryImage(await File(imagePath).readAsBytes());
+      }
+
       if (kind == 'ID CARD') {
-        pw.MemoryImage? photo;
-        final path = '${student['photoPath'] ?? ''}';
-        if (path.isNotEmpty && File(path).existsSync()) photo = pw.MemoryImage(File(path).readAsBytesSync());
-        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, build: (_) => pw.Center(child: pw.Container(
-          width: 340, padding: const pw.EdgeInsets.all(18),
-          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2), borderRadius: pw.BorderRadius.circular(12)),
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
+          width: 350, padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.white,
+            border: pw.Border.all(color: PdfColors.blue900, width: 2),
+            borderRadius: pw.BorderRadius.circular(14),
+          ),
           child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
             pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-            pw.SizedBox(height: 8), pw.Text('STUDENT ID CARD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
-            pw.SizedBox(height: 10), if (photo != null) pw.Container(width: 78, height: 88, child: pw.Image(photo, fit: pw.BoxFit.cover)),
-            pw.SizedBox(height: 8), pw.Text('${student['name']}', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold)),
-            pw.Text('Father: ${student['father'] ?? ''}'), pw.Text('Roll: ${student['roll'] ?? ''}'),
-            pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('DOB: ${student['dob'] ?? ''}'),
-            pw.Text('Contact: ${student['phone'] ?? ''}'), pw.SizedBox(height: 12), pw.Text('Principal Signature: __________________'),
+            pw.Text('STUDENT IDENTITY CARD', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+            pw.SizedBox(height: 12),
+            if (photo != null) pw.Container(width: 82, height: 92, child: pw.Image(photo, fit: pw.BoxFit.cover)),
+            pw.SizedBox(height: 8),
+            pw.Text('${s['name']}', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Father: ${s['father'] ?? ''}'),
+            pw.Text('Roll No: ${s['roll'] ?? ''}     Class: ${s['class'] ?? ''}'),
+            pw.Text('DOB: ${s['dob'] ?? ''}     Contact: ${s['phone'] ?? ''}'),
+            pw.SizedBox(height: 14),
+            pw.Text('Admission: ${s['admissionDate'] ?? ''}'),
+            pw.SizedBox(height: 14),
+            pw.Text('Principal Signature: __________________'),
           ]),
         ))));
       } else if (kind == 'FEE SLIP') {
-        final id = '${student['id']}';
-        final payments = widget.fees.where((f) => '${f['studentId']}' == id).toList();
-        final currentMonth = DateTime.now().toString().substring(0, 7);
-        final paid = payments.where((f) => '${f['month'] ?? ''}' == currentMonth).fold<double>(0, (sum, f) => sum + (double.tryParse('${f['amount']}') ?? 0));
-        final monthly = double.tryParse('${student['totalFee'] ?? 0}') ?? 0;
-        final balance = (monthly - paid).clamp(0, double.infinity).toDouble();
-        doc.addPage(pw.Page(build: (_) => pw.Padding(padding: const pw.EdgeInsets.all(28), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-          pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 21, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
-          pw.Center(child: pw.Text('STUDENT FEE VOUCHER / FEE SLIP')), pw.Divider(thickness: 2),
-          pw.Text('Voucher Date: ${DateTime.now().toString().substring(0,10)}'), pw.SizedBox(height: 10),
-          pw.Text('Student: ${student['name']}'), pw.Text('Father: ${student['father'] ?? ''}'),
-          pw.Text('Class: ${student['class']}    Roll No: ${student['roll']}'), pw.SizedBox(height: 18),
-          pw.Table.fromTextArray(headers: ['Fee Detail', 'Amount (Rs.)'], data: [
-            ['Monthly Fee', monthly.toStringAsFixed(0)], ['Paid to Date', paid.toStringAsFixed(0)], ['Balance Due', balance.toStringAsFixed(0)],
-          ]), pw.SizedBox(height: 30), pw.Text('Cashier Signature: __________________     Parent Signature: __________________'),
-          pw.SizedBox(height: 20), pw.Text('Please pay the outstanding amount at the school office.'),
-        ]))));
+        final monthly = feeOf(s);
+        final paid = paidOf(s);
+        final due = (monthly - paid).clamp(0, double.infinity).toDouble();
+        final payments = widget.fees.where((f) =>
+          '${f['studentId']}' == '${s['id']}' && '${f['month']}' == monthKey).toList();
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, margin: const pw.EdgeInsets.all(22), build: (_) => pw.Container(
+          padding: const pw.EdgeInsets.all(16),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+            pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+            pw.Divider(thickness: 2),
+            pw.Text('Voucher No: ${s['id']}-$monthKey'),
+            pw.Text('Issue Date: ${DateTime.now().toString().substring(0,10)}'),
+            pw.Text('Fee Month: $monthKey'),
+            pw.SizedBox(height: 12),
+            pw.Text('Student: ${s['name']}'),
+            pw.Text('Father: ${s['father'] ?? ''}'),
+            pw.Text('Class: ${s['class']}    Roll: ${s['roll']}'),
+            pw.SizedBox(height: 14),
+            pw.Table.fromTextArray(headers: ['Fee Description', 'Amount (Rs.)'], data: [
+              ['Monthly Tuition Fee', monthly.toStringAsFixed(0)],
+              ['Received', paid.toStringAsFixed(0)],
+              ['Balance Due', due.toStringAsFixed(0)],
+            ]),
+            pw.SizedBox(height: 12),
+            pw.Text('Payments:'),
+            ...payments.map((p) => pw.Text('${p['date']}  Rs ${p['amount']}')),
+            pw.Spacer(),
+            pw.Text('Cashier Signature: __________________'),
+            pw.SizedBox(height: 12),
+            pw.Text('Parent Signature: __________________'),
+            pw.SizedBox(height: 10),
+            pw.Center(child: pw.Text('Please submit fee before the due date.', style: const pw.TextStyle(fontSize: 9))),
+          ]),
+        )));
       } else if (kind == 'DMC') {
-        final rows = widget.marks.where((m) => '${m['studentId']}' == '${student['id']}' && (selectedExam == 'All Exams' || '${m['exam']}' == selectedExam)).toList();
+        final rows = widget.marks.where((m) =>
+          '${m['studentId']}' == '${s['id']}' &&
+          (selectedExam == 'All Exams' || '${m['exam']}' == selectedExam)).toList();
         final total = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
         final obtained = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['obtained']}') ?? 0));
         final percent = total > 0 ? obtained / total * 100 : 0.0;
-        final grade = percent >= 80 ? 'A+' : percent >= 70 ? 'A' : percent >= 60 ? 'B' : percent >= 50 ? 'C' : 'Needs Improvement';
-        doc.addPage(pw.Page(build: (_) => pw.Padding(padding: const pw.EdgeInsets.all(24), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-          pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 21, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
-          pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE')), pw.Divider(thickness: 2),
-          pw.Text('Student: ${student['name']}     Roll: ${student['roll']}'), pw.Text('Father: ${student['father']}     Class: ${student['class']}'),
-          pw.Text('Exam: ${selectedExam == 'All Exams' ? 'All Exams' : selectedExam}'), pw.SizedBox(height: 14),
-          pw.Table.fromTextArray(headers: ['Subject', 'Total', 'Obtained', '%'], data: rows.map((m) { final t = double.tryParse('${m['total']}') ?? 0; final o = double.tryParse('${m['obtained']}') ?? 0; return ['${m['subject']}', t.toStringAsFixed(0), o.toStringAsFixed(0), t > 0 ? '${(o/t*100).toStringAsFixed(1)}%' : '0%']; }).toList()),
-          pw.SizedBox(height: 12), pw.Text('Total: ${total.toStringAsFixed(0)}    Obtained: ${obtained.toStringAsFixed(0)}    Percentage: ${percent.toStringAsFixed(1)}%'),
-          pw.Text('Grade: $grade    Result: ${rows.isEmpty ? 'NO MARKS ENTERED' : (percent >= 33 ? 'PASS' : 'FAIL')}'),
-          pw.Spacer(), pw.Text('Class Teacher: __________________      Principal: __________________'),
-        ]))));
+        final grade = percent >= 90 ? 'A+' : percent >= 80 ? 'A' : percent >= 70 ? 'B' : percent >= 60 ? 'C' : percent >= 50 ? 'D' : 'Needs Improvement';
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(28), build: (_) => pw.Container(
+          padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+            pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold))),
+            pw.Divider(thickness: 2),
+            pw.Text('Student Name: ${s['name']}'),
+            pw.Text('Father Name: ${s['father'] ?? ''}'),
+            pw.Text('Class: ${s['class']}    Roll No: ${s['roll']}'),
+            pw.Text('Exam: $selectedExam     Session: ${DateTime.now().year}'),
+            pw.SizedBox(height: 16),
+            pw.Table.fromTextArray(
+              headers: ['Sr.', 'Subject', 'Total', 'Obtained', '%', 'Grade'],
+              data: rows.asMap().entries.map((e) {
+                final m = e.value;
+                final t = double.tryParse('${m['total']}') ?? 0;
+                final o = double.tryParse('${m['obtained']}') ?? 0;
+                final pct = t > 0 ? o / t * 100 : 0.0;
+                final g = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F';
+                return ['${e.key + 1}', '${m['subject']}', t.toStringAsFixed(0), o.toStringAsFixed(0), '${pct.toStringAsFixed(1)}%', g];
+              }).toList(),
+            ),
+            pw.SizedBox(height: 14),
+            pw.Text('Total Marks: ${total.toStringAsFixed(0)}'),
+            pw.Text('Obtained Marks: ${obtained.toStringAsFixed(0)}'),
+            pw.Text('Percentage: ${percent.toStringAsFixed(2)}%'),
+            pw.Text('Overall Grade: $grade'),
+            pw.Text('Result: ${rows.isEmpty ? 'NO MARKS' : percent >= 33 ? 'PASS' : 'FAIL'}'),
+            pw.Spacer(),
+            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+              pw.Text('Class Teacher: ______________'),
+              pw.Text('Principal: ______________'),
+            ]),
+            pw.SizedBox(height: 12),
+            pw.Center(child: pw.Text('School-issued result document', style: const pw.TextStyle(fontSize: 9))),
+          ]),
+        )));
       } else {
-        doc.addPage(pw.Page(build: (_) => pw.Center(child: pw.Padding(padding: const pw.EdgeInsets.all(35), child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(35), build: (_) => pw.Center(child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
           pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-          pw.SizedBox(height: 35), pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 25), pw.Text('This is to certify that ${student['name']}, son/daughter of ${student['father']}, Roll No. ${student['roll']}, Class ${student['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
-          pw.SizedBox(height: 30), pw.Text('Date: ${DateTime.now().toString().substring(0,10)}'), pw.SizedBox(height: 35), pw.Text('Principal Signature: __________________'),
-        ])))));
+          pw.SizedBox(height: 28),
+          pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 25),
+          pw.Text('This is to certify that ${s['name']}, son/daughter of ${s['father']}, Roll No. ${s['roll']}, Class ${s['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
+          pw.SizedBox(height: 24),
+          pw.Text('Date of Birth: ${s['dob'] ?? ''}'),
+          pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
+          pw.SizedBox(height: 45),
+          pw.Text('Principal Signature: __________________'),
+        ]))));
       }
     }
     await Printing.layoutPdf(onLayout: (_) async => doc.save());
@@ -2501,27 +2700,50 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
   @override
   Widget build(BuildContext context) {
     final examNames = widget.marks.map((m) => '${m['exam']}').toSet().toList();
+    final count = classStudents.length;
     return ListView(padding: const EdgeInsets.all(16), children: [
-      const Text('Class-wise Documents & Bulk Printing', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy)),
-      const SizedBox(height: 12),
-      DropdownButtonFormField<String>(value: selectedClass, decoration: const InputDecoration(labelText: 'Select Class'), items: schoolClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) => setState(() => selectedClass = v ?? schoolClasses.first)),
+      const Text('Class-wise Auto Documents', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: navy)),
       const SizedBox(height: 10),
-      DropdownButtonFormField<String>(value: selectedExam, decoration: const InputDecoration(labelText: 'Select Exam for DMC'), items: ['All Exams', ...examNames].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) => setState(() => selectedExam = v ?? 'All Exams')),
+      DropdownButtonFormField<String>(
+        value: selectedClass,
+        decoration: const InputDecoration(labelText: 'Select Class'),
+        items: schoolClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+        onChanged: (v) => setState(() => selectedClass = v ?? schoolClasses.first),
+      ),
+      Card(child: ListTile(leading: const Icon(Icons.groups, color: blue), title: Text('$selectedClass Students'), trailing: Text('$count'))),
+      Card(child: ListTile(
+        leading: const Icon(Icons.calendar_month, color: blue),
+        title: const Text('Fee Month / ماہانہ فیس کا مہینہ'),
+        subtitle: Text(monthKey),
+        trailing: const Icon(Icons.edit_calendar),
+        onTap: chooseFeeMonth,
+      )),
+      DropdownButtonFormField<String>(
+        value: selectedExam,
+        decoration: const InputDecoration(labelText: 'Select Exam for DMC'),
+        items: ['All Exams', ...examNames].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: (v) => setState(() => selectedExam = v ?? 'All Exams'),
+      ),
       const SizedBox(height: 12),
-      Card(child: ListTile(leading: const Icon(Icons.groups, color: blue), title: Text('$selectedClass Students'), trailing: Text('${classStudents.length}'))),
-      const SizedBox(height: 8),
       for (final item in [
-        ('STUDENT ID CARD', 'Generate all ID Cards (PDF)', Icons.badge),
-        ('FEE SLIP', 'Generate all Fee Slips (PDF)', Icons.receipt_long),
-        ('DMC', 'Generate all DMCs (PDF)', Icons.school),
+        ('ID CARD', 'Generate Class Student Cards (PDF)', Icons.badge),
+        ('FEE SLIP', 'Generate Monthly Fee Slips (PDF)', Icons.receipt_long),
+        ('DMC', 'Generate Class DMCs (PDF)', Icons.school),
         ('LEAVING', 'Generate Leaving Certificates (PDF)', Icons.workspace_premium),
       ])
-        Card(child: ListTile(leading: Icon(item.$3, color: blue), title: Text(item.$2), subtitle: Text('Selected class: $selectedClass'), trailing: const Icon(Icons.picture_as_pdf), onTap: () => makeClassPdf(item.$1))),
+        Card(child: ListTile(
+          leading: CircleAvatar(backgroundColor: lightBlue, child: Icon(item.$3, color: blue)),
+          title: Text(item.$2, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text('Class: $selectedClass • Students: $count'),
+          trailing: const Icon(Icons.picture_as_pdf),
+          onTap: () => makeClassPdf(item.$1),
+        )),
       const SizedBox(height: 8),
-      const Text('ہر PDF میں منتخب کلاس کے ہر طالب علم کی الگ دستاویز بنے گی۔ DMC کے لیے پہلے Exams میں marks درج کریں۔', style: TextStyle(color: Colors.black54)),
+      const Text('ہر منتخب کلاس کے ہر طالب علم کی الگ PDF دستاویز بنے گی۔ فیس سلپ منتخب مہینے کے حساب سے ہوگی۔ DMC کے لیے پہلے Exams میں نمبر درج کریں۔', style: TextStyle(color: Colors.black54)),
     ]);
   }
 }
+
 
 class StudentIDCard extends StatelessWidget {
   final String school;
