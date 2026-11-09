@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,14 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-
-
-Future<Uint8List?> loadSchoolLogoBytes() async {
-  final prefs = await SharedPreferences.getInstance();
-  final encoded = prefs.getString('academy_school_logo_base64') ?? '';
-  if (encoded.isEmpty) return null;
-  try { return base64Decode(encoded); } catch (_) { return null; }
-}
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1096,7 +1087,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int selected = 0;
   String school = 'New Iqra Children Academy';
-  Uint8List? schoolLogoBytes;
 
   List<Map<String, dynamic>> students = [];
   List<Map<String, dynamic>> fees = [];
@@ -1122,7 +1112,6 @@ class _HomePageState extends State<HomePage> {
     final t = await readData('academy_transport');
     final sal = await readData('academy_salaries');
     final ex = await readData('academy_expenses');
-    final logo = await loadSchoolLogoBytes();
 
     if (!mounted) return;
 
@@ -1136,7 +1125,6 @@ class _HomePageState extends State<HomePage> {
       transport = t;
       salaries = sal;
       expenses = ex;
-      schoolLogoBytes = logo;
     });
   }
 
@@ -1149,46 +1137,6 @@ class _HomePageState extends State<HomePage> {
     await writeData('academy_salaries', salaries);
     await writeData('academy_expenses', expenses);
     await loadAll();
-  }
-
-
-  Future<void> editSchoolProfile() async {
-    final name = TextEditingController(text: school);
-    String? pickedLogoPath;
-    final result = await showDialog<bool>(context: context, builder: (dialogContext) =>
-      StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
-        title: const Text('School Profile / Logo Settings'),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (pickedLogoPath != null)
-            Image.file(File(pickedLogoPath!), width: 100, height: 100, fit: BoxFit.contain)
-          else if (schoolLogoBytes != null)
-            Image.memory(schoolLogoBytes!, width: 100, height: 100, fit: BoxFit.contain)
-          else const CircleAvatar(radius: 40, child: Icon(Icons.school, size: 42)),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 1000);
-              if (picked != null) setDialogState(() => pickedLogoPath = picked.path);
-            },
-            icon: const Icon(Icons.upload_file), label: const Text('Choose / Change School Logo'),
-          ),
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'School Name')),
-        ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
-        ],
-      )));
-    if (result == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('academy_name', name.text.trim().isEmpty ? school : name.text.trim());
-      if (pickedLogoPath != null) {
-        final bytes = await File(pickedLogoPath!).readAsBytes();
-        await prefs.setString('academy_school_logo_base64', base64Encode(bytes));
-      }
-      await loadAll();
-    }
-    name.dispose();
   }
 
   double get totalFees => fees.fold<double>(
@@ -1264,11 +1212,14 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 28,
                   backgroundColor: Colors.white,
-                  backgroundImage: schoolLogoBytes == null ? null : MemoryImage(schoolLogoBytes!),
-                  child: schoolLogoBytes == null ? const Icon(Icons.school, color: Color(0xFF123B70), size: 32) : null,
+                  child: Icon(
+                    Icons.school,
+                    color: Color(0xFF123B70),
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1502,7 +1453,6 @@ class _HomePageState extends State<HomePage> {
         students: students,
         fees: fees,
         marks: marks,
-        logoBytes: schoolLogoBytes,
       ),
 
       ClassDocumentsModule(
@@ -1510,7 +1460,6 @@ class _HomePageState extends State<HomePage> {
         students: students,
         fees: fees,
         marks: marks,
-        logoBytes: schoolLogoBytes,
       ),
 
       TransportModule(
@@ -1570,14 +1519,11 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(selected == 0 ? school : titles[selected]),
-        actions: [
-          IconButton(
-            tooltip: 'School name and logo settings',
-            onPressed: editSchoolProfile,
-            icon: const Icon(Icons.edit),
-          ),
-        ],
+        title: Text(
+          selected == 0
+              ? school
+              : titles[selected],
+        ),
       ),
 
       drawer: Drawer(
@@ -1687,7 +1633,6 @@ class StudentsModule extends StatelessWidget {
     final father = TextEditingController();
     final roll = TextEditingController();
     final phone = TextEditingController();
-    final emergencyPhone = TextEditingController();
     final address = TextEditingController();
     final monthlyFee = TextEditingController();
     final dob = TextEditingController();
@@ -1765,24 +1710,8 @@ class StudentsModule extends StatelessWidget {
                     ),
                     TextFormField(
                       controller: dob,
-                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Date of Birth',
-                        suffixIcon: Icon(Icons.calendar_month),
-                      ),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context, initialDate: DateTime(2015),
-                          firstDate: DateTime(1990), lastDate: DateTime.now(),
-                        );
-                        if (picked != null) dob.text = picked.toIso8601String().substring(0, 10);
-                      },
-                    ),
-                    TextFormField(
-                      controller: emergencyPhone,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Emergency Contact Number',
                       ),
                     ),
                     TextFormField(
@@ -1871,7 +1800,6 @@ class StudentsModule extends StatelessWidget {
         'father': father.text.trim(),
         'roll': roll.text.trim(),
         'phone': phone.text.trim(),
-        'emergencyPhone': emergencyPhone.text.trim(),
         'address': address.text.trim(),
         'dob': dob.text.trim(),
         'class': cls,
@@ -1882,7 +1810,6 @@ class StudentsModule extends StatelessWidget {
         'photoPath': photoPath,
         'admissionDate':
             DateTime.now().toString().substring(0, 10),
-        'cardExpiry': DateTime(DateTime.now().year + 1, DateTime.now().month, DateTime.now().day).toString().substring(0, 10),
       };
 
       onSave([...students, record]);
@@ -1892,7 +1819,6 @@ class StudentsModule extends StatelessWidget {
     father.dispose();
     roll.dispose();
     phone.dispose();
-    emergencyPhone.dispose();
     address.dispose();
     monthlyFee.dispose();
     dob.dispose();
@@ -2374,81 +2300,174 @@ class AttendanceModule extends StatelessWidget {
   }
 }
 // ============== EXAMS MODULE ==============
-
-class ExamsModule extends StatefulWidget {
+class ExamsModule extends StatelessWidget {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> marks;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-  const ExamsModule({super.key, required this.students, required this.marks, required this.onSave});
-  @override
-  State<ExamsModule> createState() => _ExamsModuleState();
-}
 
-class _ExamsModuleState extends State<ExamsModule> {
+  const ExamsModule({
+    super.key,
+    required this.students,
+    required this.marks,
+    required this.onSave,
+  });
+
   Future<void> addMarks(BuildContext context) async {
-    if (widget.students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register students first')));
+    if (students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Register students first'),
+        ),
+      );
       return;
     }
-    String studentId = '${widget.students.first['id']}';
-    String examName = 'Monthly Test';
-    String subjectName = '';
+
+    String studentId = '${students.first['id']}';
+
+    final exam = TextEditingController(
+      text: 'Monthly Test',
+    );
+    final subject = TextEditingController();
     final total = TextEditingController(text: '100');
     final obtained = TextEditingController();
-    final student = widget.students.first;
-    subjectName = schoolSubjects('${student['class']}').first;
 
-    final saved = await showDialog<bool>(context: context, builder: (dialogContext) =>
-      StatefulBuilder(builder: (context, setDialogState) {
-        final selected = widget.students.firstWhere((s) => '${s['id']}' == studentId);
-        final subjects = schoolSubjects('${selected['class']}');
-        if (!subjects.contains(subjectName)) subjectName = subjects.first;
-        return AlertDialog(
-          title: const Text('DMC – Enter Subject Marks'),
-          content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<String>(
-              value: studentId, decoration: const InputDecoration(labelText: 'Student'),
-              items: widget.students.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text('${s['name']} (${s['class']})'))).toList(),
-              onChanged: (v) { if (v != null) setDialogState(() { studentId = v; subjectName = schoolSubjects('${widget.students.firstWhere((s) => '${s['id']}' == v)['class']}').first; }); },
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) =>
+            AlertDialog(
+          title: const Text('Add Exam Marks'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: studentId,
+                  decoration: const InputDecoration(
+                    labelText: 'Student',
+                  ),
+                  items: students
+                      .map(
+                        (s) => DropdownMenuItem<String>(
+                          value: '${s['id']}',
+                          child: Text('${s['name']}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => studentId = v);
+                    }
+                  },
+                ),
+                TextField(
+                  controller: exam,
+                  decoration: const InputDecoration(
+                    labelText: 'Exam Name',
+                    ),
+                ),
+                TextField(
+                  controller: subject,
+                  decoration: const InputDecoration(
+                    labelText: 'Subject',
+                  ),
+                ),
+                TextField(
+                  controller: total,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Total Marks',
+                  ),
+                ),
+                TextField(
+                  controller: obtained,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Obtained Marks',
+                  ),
+                ),
+              ],
             ),
-            TextFormField(initialValue: examName, decoration: const InputDecoration(labelText: 'Exam / امتحان'), onChanged: (v) => examName = v),
-            DropdownButtonFormField<String>(
-              value: subjectName, decoration: const InputDecoration(labelText: 'Pre-selected Class Subject'),
-              items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-              onChanged: (v) { if (v != null) setDialogState(() => subjectName = v); },
-            ),
-            TextField(controller: total, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Paper Total Marks')),
-            TextField(controller: obtained, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Obtained Marks')),
-          ])),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save Marks')),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, true),
+              child: const Text('Save Marks'),
+            ),
           ],
-        );
-      }));
+        ),
+      ),
+    );
     final maxMarks = double.tryParse(total.text) ?? 0;
-    final gotMarks = double.tryParse(obtained.text) ?? -1;
-    if (saved == true && subjectName.isNotEmpty && examName.trim().isNotEmpty && maxMarks > 0 && gotMarks >= 0 && gotMarks <= maxMarks) {
-      final s = widget.students.firstWhere((s) => '${s['id']}' == studentId);
-      final next = [...widget.marks.where((m) => !('${m['studentId']}' == studentId && '${m['exam']}' == examName.trim() && '${m['subject']}' == subjectName)),
-        {'studentId': studentId, 'studentName': s['name'], 'father': s['father'], 'photoPath': s['photoPath'], 'roll': s['roll'], 'class': s['class'], 'exam': examName.trim(), 'subject': subjectName, 'total': maxMarks, 'obtained': gotMarks, 'date': DateTime.now().toIso8601String().substring(0, 10)}];
-      widget.onSave(next);
-    } else if (saved == true) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid marks. Obtained marks cannot exceed paper total.')));
+    final gotMarks =
+        double.tryParse(obtained.text) ?? -1;
+
+    if (saved == true &&
+        subject.text.trim().isNotEmpty &&
+        maxMarks > 0 &&
+        gotMarks >= 0 &&
+        gotMarks <= maxMarks) {
+      final student = students.firstWhere(
+        (s) => '${s['id']}' == studentId,
+      );
+
+      onSave([
+        ...marks,
+        {
+          'studentId': studentId,
+          'studentName': student['name'],
+          'roll': student['roll'],
+          'class': student['class'],
+          'exam': exam.text.trim(),
+          'subject': subject.text.trim(),
+          'total': maxMarks,
+          'obtained': gotMarks,
+          'date':
+              DateTime.now().toString().substring(0, 10),},
+      ]);
     }
-    total.dispose(); obtained.dispose();
+
+    exam.dispose();
+    subject.dispose();
+    total.dispose();
+    obtained.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
-    FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add / Edit DMC Subject Marks')),
-    const SizedBox(height: 12),
-    ...widget.marks.reversed.map((m) => Card(child: ListTile(
-      title: Text('${m['studentName']} - ${m['subject']}'),
-      subtitle: Text('${m['exam']} | ${m['class']} | Roll: ${m['roll']}'),
-      trailing: Text('${m['obtained']} / ${m['total']}'),
-    ))),
-  ]);
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        FilledButton.icon(
+          onPressed: () => addMarks(context),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Exam Marks'),
+        ),
+        const SizedBox(height: 12),
+        ...marks.reversed.map(
+          (m) => Card(
+            child: ListTile(
+              title: Text(
+                '${m['studentName']} - ${m['subject']}',
+              ),
+              subtitle: Text(
+                '${m['exam']} | ${m['class']}',
+              ),
+              trailing: Text(
+                '${m['obtained']} / ${m['total']}',
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ================= MISSING MODULES ADDED =================
@@ -2585,9 +2604,8 @@ class _SimpleRecordPage extends StatelessWidget {
 
 class ClassDocumentsModule extends StatefulWidget {
   final String school;
-  final Uint8List? logoBytes;
   final List<Map<String, dynamic>> students, fees, marks;
-  const ClassDocumentsModule({super.key, required this.school, this.logoBytes, required this.students, required this.fees, required this.marks});
+  const ClassDocumentsModule({super.key, required this.school, required this.students, required this.fees, required this.marks});
 
   @override
   State<ClassDocumentsModule> createState() => _ClassDocumentsModuleState();
@@ -2637,14 +2655,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         photo = pw.MemoryImage(await File(imagePath).readAsBytes());
       }
 
-      final pw.MemoryImage? schoolLogo = widget.logoBytes == null ? null : pw.MemoryImage(widget.logoBytes!);
       if (kind == 'ID CARD') {
-        final studentPayload = jsonEncode({
-          'studentId': s['id'], 'name': s['name'], 'father': s['father'],
-          'roll': s['roll'], 'class': s['class'], 'phone': s['phone'],
-          'address': s['address'] ?? '', 'school': widget.school,
-        });
-        // Front side
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
           width: 350, padding: const pw.EdgeInsets.all(18),
           decoration: pw.BoxDecoration(
@@ -2653,7 +2664,6 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             borderRadius: pw.BorderRadius.circular(14),
           ),
           child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-            if (schoolLogo != null) pw.Container(width: 48, height: 48, child: pw.Image(schoolLogo, fit: pw.BoxFit.contain)),
             pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
             pw.Text('STUDENT IDENTITY CARD', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
             pw.SizedBox(height: 12),
@@ -2666,27 +2676,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.SizedBox(height: 14),
             pw.Text('Admission: ${s['admissionDate'] ?? ''}'),
             pw.SizedBox(height: 14),
-            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-            pw.Text('Teacher Signature: __________________'),
             pw.Text('Principal Signature: __________________'),
-          ]),
-          ]),
-        ))));
-        // Back side: scannable QR contains the student's key details.
-        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
-          width: 350, padding: const pw.EdgeInsets.all(20),
-          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2), borderRadius: pw.BorderRadius.circular(14)),
-          child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-            pw.Text('STUDENT INFORMATION', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-            pw.SizedBox(height: 14),
-            pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: studentPayload, width: 125, height: 125),
-            pw.SizedBox(height: 10),
-            pw.Text('Address: ${s['address'] ?? 'Not provided'}', textAlign: pw.TextAlign.center),
-            pw.Text('Emergency Contact: ${s['emergency'] ?? s['emergencyPhone'] ?? 'Not provided'}'),
-            pw.Text('Expiry Date: ${s['cardExpiry'] ?? '____________'}'),
-            pw.SizedBox(height: 10),
-            pw.Text('Scan QR code to view student record', style: const pw.TextStyle(fontSize: 9)),
-            pw.Text(widget.school, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
           ]),
         ))));
       } else if (kind == 'FEE SLIP') {
@@ -2699,7 +2689,6 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           padding: const pw.EdgeInsets.all(16),
           decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-            if (schoolLogo != null) pw.Center(child: pw.Container(width: 48, height: 48, child: pw.Image(schoolLogo, fit: pw.BoxFit.contain))),
             pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
             pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
             pw.Divider(thickness: 2),
@@ -2712,10 +2701,9 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Class: ${s['class']}    Roll: ${s['roll']}'),
             pw.SizedBox(height: 14),
             pw.Table.fromTextArray(headers: ['Fee Description', 'Amount (Rs.)'], data: [
-              ['Previous Balance', '${s['oldBalance'] ?? s['previousBalance'] ?? 0}'],
               ['Monthly Tuition Fee', monthly.toStringAsFixed(0)],
               ['Received', paid.toStringAsFixed(0)],
-              ['Balance Due', (due + (double.tryParse('${s['oldBalance'] ?? s['previousBalance'] ?? 0}') ?? 0)).toStringAsFixed(0)],
+              ['Balance Due', due.toStringAsFixed(0)],
             ]),
             pw.SizedBox(height: 12),
             pw.Text('Payments:'),
@@ -2740,7 +2728,6 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           padding: const pw.EdgeInsets.all(18),
           decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-            if (schoolLogo != null) pw.Center(child: pw.Container(width: 55, height: 55, child: pw.Image(schoolLogo, fit: pw.BoxFit.contain))),
             pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
             pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold))),
             pw.Divider(thickness: 2),
@@ -2748,7 +2735,6 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Father Name: ${s['father'] ?? ''}'),
             pw.Text('Class: ${s['class']}    Roll No: ${s['roll']}'),
             pw.Text('Exam: $selectedExam     Session: ${DateTime.now().year}'),
-            if (photo != null) pw.Align(alignment: pw.Alignment.centerRight, child: pw.Container(width: 68, height: 78, child: pw.Image(photo, fit: pw.BoxFit.cover))),
             pw.SizedBox(height: 16),
             pw.Table.fromTextArray(
               headers: ['Sr.', 'Subject', 'Total', 'Obtained', '%', 'Grade'],
@@ -2769,8 +2755,8 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('Result: ${rows.isEmpty ? 'NO MARKS' : percent >= 33 ? 'PASS' : 'FAIL'}'),
             pw.Spacer(),
             pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-              pw.Text('Teacher Signature: __________________'),
-              pw.Text('Principal Signature: __________________'),
+              pw.Text('Class Teacher: ______________'),
+              pw.Text('Principal: ______________'),
             ]),
             pw.SizedBox(height: 12),
             pw.Center(child: pw.Text('School-issued result document', style: const pw.TextStyle(fontSize: 9))),
@@ -2778,25 +2764,16 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         )));
       } else {
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(35), build: (_) => pw.Center(child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-          if (schoolLogo != null) pw.Container(width: 60, height: 60, child: pw.Image(schoolLogo, fit: pw.BoxFit.contain)),
           pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
           pw.SizedBox(height: 28),
-          pw.Text('REGISTRATION NO: __________________'),
-          pw.SizedBox(height: 10),
           pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          if (photo != null) pw.Container(width: 85, height: 95, child: pw.Image(photo, fit: pw.BoxFit.cover)),
           pw.SizedBox(height: 25),
           pw.Text('This is to certify that ${s['name']}, son/daughter of ${s['father']}, Roll No. ${s['roll']}, Class ${s['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
           pw.SizedBox(height: 24),
           pw.Text('Date of Birth: ${s['dob'] ?? ''}'),
           pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
           pw.SizedBox(height: 45),
-          pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-            pw.Text('Teacher Signature: __________________'),
-            pw.Text('Principal Signature: __________________'),
-          ]),
-          pw.SizedBox(height: 12),
-          pw.Text('School Seal: __________________'),
+          pw.Text('Principal Signature: __________________'),
         ]))));
       }
     }
@@ -2861,42 +2838,16 @@ class StudentIDCard extends StatelessWidget {
     final path = '${student['photoPath'] ?? ''}';
     pw.MemoryImage? photo;
     if (path.isNotEmpty && File(path).existsSync()) photo = pw.MemoryImage(File(path).readAsBytesSync());
-    final logoBytes = await loadSchoolLogoBytes();
-    final pw.MemoryImage? logo = logoBytes == null ? null : pw.MemoryImage(logoBytes);
-    final payload = jsonEncode({
-      'studentId': student['id'], 'name': student['name'],
-      'father': student['father'], 'roll': student['roll'],
-      'class': student['class'], 'phone': student['phone'],
-      'address': student['address'] ?? '', 'school': school,
-    });
-    // Front side
-    doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
-      width: 350, padding: const pw.EdgeInsets.all(18),
+    doc.addPage(pw.Page(build: (context) => pw.Center(child: pw.Container(
+      width: 300, padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(border: pw.Border.all(width: 2, color: PdfColors.blue900), borderRadius: pw.BorderRadius.circular(12)),
       child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-        if (logo != null) pw.Container(width: 48, height: 48, child: pw.Image(logo, fit: pw.BoxFit.contain)),
-        pw.Text(school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-        pw.SizedBox(height: 8), pw.Text('STUDENT ID CARD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        if (photo != null) pw.Container(width: 78, height: 88, child: pw.Image(photo, fit: pw.BoxFit.cover)),
+        pw.Text(school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 10), pw.Text('STUDENT ID CARD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        if (photo != null) pw.Container(width: 70, height: 80, child: pw.Image(photo, fit: pw.BoxFit.cover)),
         pw.Divider(), pw.Text('Name: ${student['name'] ?? ''}'),
         pw.Text('Father: ${student['father'] ?? ''}'), pw.Text('Roll: ${student['roll'] ?? ''}'),
         pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}'),
-      ]),
-    ))));
-    // Back side with scannable QR containing student record details.
-    doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
-      width: 350, padding: const pw.EdgeInsets.all(18),
-      decoration: pw.BoxDecoration(border: pw.Border.all(width: 2, color: PdfColors.blue900), borderRadius: pw.BorderRadius.circular(12)),
-      child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-        pw.Text('STUDENT DETAILS', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 12),
-        pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: payload, width: 125, height: 125),
-        pw.SizedBox(height: 10),
-        pw.Text('Address: ${student['address'] ?? 'Not provided'}', textAlign: pw.TextAlign.center),
-        pw.Text('Emergency Contact: ${student['emergency'] ?? student['emergencyPhone'] ?? 'Not provided'}'),
-        pw.Text('Expiry Date: ${student['cardExpiry'] ?? '____________'}'),
-        pw.SizedBox(height: 8), pw.Text('Scan QR to read student data', style: const pw.TextStyle(fontSize: 9)),
-        pw.Text(school, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
       ]),
     ))));
     await Printing.layoutPdf(onLayout: (_) async => doc.save());
@@ -2920,14 +2871,12 @@ class StudentIDCard extends StatelessWidget {
 
 class ReportsModule extends StatelessWidget {
   final String school;
-  final Uint8List? logoBytes;
   final List<Map<String, dynamic>> students, fees, marks;
-  const ReportsModule({super.key, required this.school, this.logoBytes, required this.students, required this.fees, required this.marks});
+  const ReportsModule({super.key, required this.school, required this.students, required this.fees, required this.marks});
 
   Future<void> makeReport() async {
     final doc = pw.Document();
     doc.addPage(pw.MultiPage(build: (context) => [
-      if (logoBytes != null) pw.Center(child: pw.Container(width: 65, height: 65, child: pw.Image(pw.MemoryImage(logoBytes!), fit: pw.BoxFit.contain))),
       pw.Text(school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
       pw.Text('School Summary Report'), pw.Divider(),
       pw.Text('Total Students: ${students.length}'),
