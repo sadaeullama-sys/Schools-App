@@ -1,0 +1,9 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:new_iqra_academy/main.dart';
+
+void main() {
+  testWidgets('New Iqra app starts', (WidgetTester tester) async {
+    await tester.pumpWidget(const SchoolManagementApp());
+    expect(find.byType(SchoolManagementApp), findsOneWidget);
+  });
+}
