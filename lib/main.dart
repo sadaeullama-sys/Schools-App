@@ -606,7 +606,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ============== ADMIN CONTROLLED PASSWORD RESET ==============
+// ============== RECOVERY ID + ONE-TIME ADMIN RESET CODE ==============
 class AdminPasswordResetPage extends StatefulWidget {
   const AdminPasswordResetPage({super.key});
   @override
@@ -614,52 +614,135 @@ class AdminPasswordResetPage extends StatefulWidget {
 }
 
 class _AdminPasswordResetPageState extends State<AdminPasswordResetPage> {
-  final adminUser = TextEditingController();
-  final adminPass = TextEditingController();
+  final reference = TextEditingController();
+  final resetCode = TextEditingController();
   final newPass = TextEditingController();
   final confirmPass = TextEditingController();
+  String? generatedReference;
   String message = '';
   bool done = false;
 
-  Future<void> resetPassword() async {
-    if (adminUser.text.trim() != adminUsername || adminPass.text != adminPassword) {
-      setState(() => message = 'Admin username یا password درست نہیں ہے۔');
-      return;
-    }
-    if (newPass.text.trim().length < 6 || newPass.text != confirmPass.text) {
-      setState(() => message = 'نیا پاس ورڈ کم از کم 6 حروف کا ہو اور دونوں پاس ورڈ ایک جیسے ہوں۔');
-      return;
-    }
+  String makeDigits(int length) {
+    final r = Random.secure();
+    return List.generate(length, (_) => r.nextInt(10).toString()).join();
+  }
+
+  Future<void> createRequest() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('academy_customer_password', newPass.text);
+    final ref = 'IQRA-${makeDigits(6)}';
+    final requests = jsonDecode(prefs.getString('academy_recovery_requests') ?? '{}') as Map<String, dynamic>;
+    requests[ref] = {'createdAt': DateTime.now().millisecondsSinceEpoch, 'device': await getDeviceId(), 'used': false};
+    await prefs.setString('academy_recovery_requests', jsonEncode(requests));
     if (!mounted) return;
-    setState(() { done = true; message = 'School user password کامیابی سے تبدیل ہوگیا۔'; });
+    setState(() { generatedReference = ref; message = 'یہ Reference ID ایڈمن کو دیں۔'; });
+  }
+
+  Future<void> applyReset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ref = reference.text.trim().toUpperCase();
+    final requests = jsonDecode(prefs.getString('academy_recovery_requests') ?? '{}') as Map<String, dynamic>;
+    final req = requests[ref];
+    if (req is! Map || req['used'] == true) { setState(() => message = 'Reference ID درست نہیں یا پہلے استعمال ہو چکی ہے۔'); return; }
+    final codes = jsonDecode(prefs.getString('academy_recovery_codes') ?? '{}') as Map<String, dynamic>;
+    final entry = codes[ref];
+    if (entry is! Map || entry['used'] == true || (entry['expires'] as int? ?? 0) < DateTime.now().millisecondsSinceEpoch || entry['code'] != resetCode.text.trim()) {
+      setState(() => message = 'Reset Code غلط، ختم شدہ یا پہلے استعمال ہو چکا ہے۔'); return;
+    }
+    if (newPass.text.length < 8 || newPass.text != confirmPass.text) {
+      setState(() => message = 'نیا پاس ورڈ کم از کم 8 حروف کا ہو اور دونوں پاس ورڈ ایک جیسے ہوں۔'); return;
+    }
+    await prefs.setString('academy_customer_password', newPass.text);
+    req['used'] = true;
+    entry['used'] = true;
+    requests[ref] = req;
+    codes[ref] = entry;
+    await prefs.setString('academy_recovery_requests', jsonEncode(requests));
+    await prefs.setString('academy_recovery_codes', jsonEncode(codes));
+    if (!mounted) return;
+    setState(() { done = true; message = 'پاس ورڈ کامیابی سے تبدیل ہوگیا۔ اب نئے پاس ورڈ سے Login کریں۔'; });
   }
 
   @override
-  void dispose() {
-    adminUser.dispose(); adminPass.dispose(); newPass.dispose(); confirmPass.dispose();
-    super.dispose();
-  }
+  void dispose() { reference.dispose(); resetCode.dispose(); newPass.dispose(); confirmPass.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Admin Password Reset')),
+    appBar: AppBar(title: const Text('Password Recovery')),
     body: ListView(padding: const EdgeInsets.all(20), children: [
-      const Icon(Icons.admin_panel_settings, size: 62, color: navy),
-      const Text('صرف Admin اسکول اکاؤنٹ کا پاس ورڈ تبدیل کر سکتا ہے۔', textAlign: TextAlign.center),
-      const SizedBox(height: 18),
-      TextField(controller: adminUser, decoration: const InputDecoration(labelText: 'Admin Username')),
-      const SizedBox(height: 10),
-      TextField(controller: adminPass, obscureText: true, decoration: const InputDecoration(labelText: 'Admin Password')),
+      const Icon(Icons.lock_reset, size: 58, color: navy),
+      const Text('پہلے Recovery Reference ID بنائیں۔ یہ ID ایڈمن کو دیں، ایڈمن آپ کو ایک بار استعمال ہونے والا Reset Code دے گا۔', textAlign: TextAlign.center),
+      const SizedBox(height: 14),
+      if (generatedReference == null) FilledButton.icon(onPressed: createRequest, icon: const Icon(Icons.confirmation_number), label: const Text('Generate Recovery Reference ID')),
+      if (generatedReference != null) Card(color: lightBlue, child: Padding(padding: const EdgeInsets.all(14), child: Column(children: [const Text('Your Recovery Reference ID'), SelectableText(generatedReference!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: navy)), const Text('یہ ID ایڈمن کو بتائیں۔')]))),
       const Divider(height: 28),
-      TextField(controller: newPass, obscureText: true, decoration: const InputDecoration(labelText: 'New School Login Password')),
+      TextField(controller: reference, decoration: const InputDecoration(labelText: 'Recovery Reference ID (IQRA-xxxxxx)')),
+      const SizedBox(height: 10),
+      TextField(controller: resetCode, decoration: const InputDecoration(labelText: 'One-time Reset Code')),
+      const SizedBox(height: 10),
+      TextField(controller: newPass, obscureText: true, decoration: const InputDecoration(labelText: 'New Password')),
       const SizedBox(height: 10),
       TextField(controller: confirmPass, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm New Password')),
-      const SizedBox(height: 14),
-      if (message.isNotEmpty) Text(message, style: TextStyle(color: done ? Colors.green : Colors.red)),
-      FilledButton.icon(onPressed: resetPassword, icon: const Icon(Icons.password), label: const Text('Verify Admin & Reset Password')),
+      if (message.isNotEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: done ? Colors.green : navy))),
+      FilledButton.icon(onPressed: done ? null : applyReset, icon: const Icon(Icons.password), label: const Text('Verify Code & Reset Password')),
+      const SizedBox(height: 10),
+      OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminRecoveryIssuePage())), icon: const Icon(Icons.admin_panel_settings), label: const Text('Admin: Issue Recovery Code')),
       if (done) OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Back to Login')),
+    ]),
+  );
+}
+
+class AdminRecoveryIssuePage extends StatefulWidget {
+  const AdminRecoveryIssuePage({super.key});
+  @override
+  State<AdminRecoveryIssuePage> createState() => _AdminRecoveryIssuePageState();
+}
+
+class _AdminRecoveryIssuePageState extends State<AdminRecoveryIssuePage> {
+  final user = TextEditingController();
+  final pass = TextEditingController();
+  final ref = TextEditingController();
+  bool authorized = false;
+  String message = '';
+  String? issuedCode;
+
+  Future<void> issue() async {
+    if (!authorized) {
+      if (user.text.trim() != adminUsername || pass.text != adminPassword) { setState(() => message = 'Admin login درست نہیں۔'); return; }
+      setState(() { authorized = true; message = 'Admin verified. اب صارف کی Reference ID درج کریں۔'; });
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final id = ref.text.trim().toUpperCase();
+    final requests = jsonDecode(prefs.getString('academy_recovery_requests') ?? '{}') as Map<String, dynamic>;
+    final request = requests[id];
+    if (request is! Map || request['used'] == true) { setState(() => message = 'یہ Reference ID موجود نہیں یا پہلے استعمال ہو چکی ہے۔'); return; }
+    final code = List.generate(8, (_) => Random.secure().nextInt(10).toString()).join();
+    final codes = jsonDecode(prefs.getString('academy_recovery_codes') ?? '{}') as Map<String, dynamic>;
+    codes[id] = {'code': code, 'expires': DateTime.now().add(const Duration(minutes: 15)).millisecondsSinceEpoch, 'used': false};
+    await prefs.setString('academy_recovery_codes', jsonEncode(codes));
+    if (!mounted) return;
+    setState(() { issuedCode = code; message = 'یہ کوڈ صارف کو دیں۔ 15 منٹ بعد ختم ہو جائے گا اور ایک بار استعمال ہوگا۔'; });
+  }
+
+  @override
+  void dispose() { user.dispose(); pass.dispose(); ref.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Admin Recovery Requests')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const Icon(Icons.admin_panel_settings, size: 58, color: navy),
+      if (!authorized) ...[
+        TextField(controller: user, decoration: const InputDecoration(labelText: 'Admin Username')),
+        const SizedBox(height: 10),
+        TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Admin Password')),
+      ] else ...[
+        const Text('Admin Login Verified', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        TextField(controller: ref, decoration: const InputDecoration(labelText: 'User Recovery Reference ID')),
+      ],
+      if (message.isNotEmpty) Padding(padding: const EdgeInsets.all(12), child: Text(message)),
+      if (issuedCode != null) Card(color: lightBlue, child: Padding(padding: const EdgeInsets.all(16), child: SelectableText('RESET CODE: $issuedCode', textAlign: TextAlign.center, style: const TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: navy)))),
+      FilledButton(onPressed: issue, child: Text(authorized ? 'Verify ID & Generate One-time Code' : 'Admin Login')),
     ]),
   );
 }
