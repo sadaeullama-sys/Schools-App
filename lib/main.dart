@@ -476,6 +476,138 @@ class _SetupPageState extends State<SetupPage> {
     );
   }
 }
+// ================= SCHOOL USER LOGIN =================
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+  bool obscurePassword = true;
+  bool rememberMe = true;
+  bool loading = false;
+  String error = '';
+  String schoolName = 'New Iqra Children Academy';
+
+  @override
+  void initState() {
+    super.initState();
+    loadLoginDetails();
+  }
+
+  Future<void> loadLoginDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      schoolName = prefs.getString('academy_name') ?? 'New Iqra Children Academy';
+      username.text = prefs.getString('academy_customer_username') ?? '';
+      rememberMe = prefs.getBool('academy_remember_me') ?? true;
+    });
+  }
+
+  Future<void> login() async {
+    if (loading) return;
+    setState(() { loading = true; error = ''; });
+    final prefs = await SharedPreferences.getInstance();
+    final savedUsername = prefs.getString('academy_customer_username') ?? '';
+    final savedPassword = prefs.getString('academy_customer_password') ?? '';
+    if (username.text.trim() != savedUsername || password.text != savedPassword) {
+      if (!mounted) return;
+      setState(() { loading = false; error = 'غلط یوزرنیم یا پاس ورڈ۔ دوبارہ کوشش کریں۔'; });
+      return;
+    }
+    await prefs.setBool('academy_remember_me', rememberMe);
+    if (!mounted) return;
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+  }
+
+  @override
+  void dispose() {
+    username.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF061D39), Color(0xFF0D4D86), Color(0xFF1681C5)],
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(22),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Card(
+                  elevation: 14,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(25),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircleAvatar(radius: 48, backgroundColor: lightBlue,
+                          child: Icon(Icons.school, size: 55, color: navy)),
+                        const SizedBox(height: 16),
+                        Text(schoolName, textAlign: TextAlign.center,
+                          style: const TextStyle(color: navy, fontSize: 22, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        const Text('SCHOOL MANAGEMENT SYSTEM',
+                          style: TextStyle(color: blue, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                        const SizedBox(height: 25),
+                        TextField(controller: username, textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person_outline), border: OutlineInputBorder())),
+                        const SizedBox(height: 14),
+                        TextField(controller: password, obscureText: obscurePassword,
+                          onSubmitted: (_) => login(),
+                          decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                              icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off)))),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Checkbox(value: rememberMe, onChanged: (v) => setState(() => rememberMe = v ?? false)),
+                          const Text('Remember Me'), const Spacer(),
+                          TextButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Password reset کے لیے Admin سے رابطہ کریں۔'))),
+                            child: const Text('Forgot Password?')),
+                        ]),
+                        if (error.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(error, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                        ],
+                        const SizedBox(height: 12),
+                        SizedBox(width: double.infinity, height: 52,
+                          child: FilledButton.icon(onPressed: loading ? null : login,
+                            icon: loading ? const SizedBox(width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.login),
+                            label: const Text('LOGIN'))),
+                        const SizedBox(height: 14),
+                        const Text('Authorized School Account', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ================= ADMIN LOGIN =================
 
 class AdminLoginPage extends StatefulWidget {
