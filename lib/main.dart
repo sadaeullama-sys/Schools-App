@@ -2366,7 +2366,7 @@ class ExamsModule extends StatelessWidget {
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
     FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add Paper / Update Marks')),
     const SizedBox(height: 10),
-    ...marks.map((m) => Card(child: ListTile(leading: const Icon(Icons.assignment_turned_in), title: Text('${m['studentName']} • ${m['subject']}'), subtitle: Text('${m['class']} | ${m['exam']} | Total: ${m['total']} | Obtained: ${m['obtained']}')))),
+    ...marks.map((m) => Card(child: ListTile(leading: const Icon(Icons.assignment_turned_in), title: Text('${m['studentName']} • ${m['subject']}'), subtitle: Text('${m['class']} | ${m['exam']} | Total: ${m['total']} | Obtained: ${m['obtained']}'))),
     if (marks.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No exam marks entered yet')),
   ]);
 }
@@ -2709,11 +2709,9 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
                 if (photo != null) pw.Container(width: 88, height: 105, padding: const pw.EdgeInsets.all(3), decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue300)), child: pw.Image(photo, fit: pw.BoxFit.cover)),
               ]),
               pw.SizedBox(height: 22),
-              pw.Text('has been a student of this institution. The student's conduct and academic record are maintained in the school register. This certificate is issued on request for official use.', textAlign: pw.TextAlign.justify, style: const pw.TextStyle(fontSize: 12, lineSpacing: 5)),
+              pw.Text("has been a student of this institution. The student's conduct and academic record are maintained in the school register. This certificate is issued on request for official use.", textAlign: pw.TextAlign.justify, style: const pw.TextStyle(fontSize: 12)),
               pw.SizedBox(height: 18), pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
-              pw.Spacer(), pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Class Teacher
-____________________', textAlign: pw.TextAlign.center), pw.Text('Principal
-____________________', textAlign: pw.TextAlign.center)]),
+              pw.Spacer(), pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Class Teacher\n____________________', textAlign: pw.TextAlign.center), pw.Text('Principal\n____________________', textAlign: pw.TextAlign.center)]),
               pw.SizedBox(height: 12), pw.Center(child: pw.Text('New Iqra Children Academy • Official School Document', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600))),
             ])),
         )));
