@@ -2366,7 +2366,7 @@ class ExamsModule extends StatelessWidget {
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
     FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add Paper / Update Marks')),
     const SizedBox(height: 10),
-    ...marks.map((m) => Card(child: ListTile(leading: const Icon(Icons.assignment_turned_in), title: Text('${m['studentName']} • ${m['subject']}'), subtitle: Text('${m['class']} | ${m['exam']} | Total: ${m['total']} | Obtained: ${m['obtained']}'))),
+    ...marks.map((m) => Card(child: ListTile(leading: const Icon(Icons.assignment_turned_in), title: Text('${m['studentName']} • ${m['subject']}'), subtitle: Text('${m['class']} | ${m['exam']} | Total: ${m['total']} | Obtained: ${m['obtained']}')))),
     if (marks.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No exam marks entered yet')),
   ]);
 }
