@@ -1636,6 +1636,7 @@ class StudentsModule extends StatelessWidget {
     final address = TextEditingController();
     final monthlyFee = TextEditingController();
     final dob = TextEditingController();
+    final admissionDate = TextEditingController(text: DateTime.now().toString().substring(0, 10));
 
     String cls = schoolClasses.first;
     String gender = 'Male';
@@ -1710,9 +1711,22 @@ class StudentsModule extends StatelessWidget {
                     ),
                     TextFormField(
                       controller: dob,
-                      decoration: const InputDecoration(
-                        labelText: 'Date of Birth',
-                      ),
+                      readOnly: true,
+                      decoration: const InputDecoration(labelText: 'Date of Birth', suffixIcon: Icon(Icons.calendar_month)),
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(context: context, initialDate: DateTime(now.year - 5), firstDate: DateTime(1980), lastDate: now);
+                        if (picked != null) dob.text = picked.toString().substring(0, 10);
+                      },
+                    ),
+                    TextFormField(
+                      controller: admissionDate, readOnly: true,
+                      decoration: const InputDecoration(labelText: 'Admission Date', suffixIcon: Icon(Icons.event)),
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(context: context, initialDate: DateTime.tryParse(admissionDate.text) ?? now, firstDate: DateTime(2000), lastDate: DateTime(2040));
+                        if (picked != null) admissionDate.text = picked.toString().substring(0, 10);
+                      },
                     ),
                     TextFormField(
                       controller: address,
@@ -1808,8 +1822,7 @@ class StudentsModule extends StatelessWidget {
         'registrationFee': '0',
         'guardian': '',
         'photoPath': photoPath,
-        'admissionDate':
-            DateTime.now().toString().substring(0, 10),
+        'admissionDate': admissionDate.text.trim(),
       };
 
       onSave([...students, record]);
@@ -1822,6 +1835,7 @@ class StudentsModule extends StatelessWidget {
     address.dispose();
     monthlyFee.dispose();
     dob.dispose();
+    admissionDate.dispose();
   }
 
   @override
@@ -2304,173 +2318,58 @@ class ExamsModule extends StatelessWidget {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> marks;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-
-  const ExamsModule({
-    super.key,
-    required this.students,
-    required this.marks,
-    required this.onSave,
-  });
+  const ExamsModule({super.key, required this.students, required this.marks, required this.onSave});
 
   Future<void> addMarks(BuildContext context) async {
     if (students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Register students first'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Register students first')));
       return;
     }
-
     String studentId = '${students.first['id']}';
-
-    final exam = TextEditingController(
-      text: 'Monthly Test',
-    );
-    final subject = TextEditingController();
+    String selectedSubject = schoolSubjects('${students.first['class']}').first;
+    final exam = TextEditingController(text: 'Monthly Test');
     final total = TextEditingController(text: '100');
     final obtained = TextEditingController();
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) =>
-            AlertDialog(
-          title: const Text('Add Exam Marks'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: studentId,
-                  decoration: const InputDecoration(
-                    labelText: 'Student',
-                  ),
-                  items: students
-                      .map(
-                        (s) => DropdownMenuItem<String>(
-                          value: '${s['id']}',
-                          child: Text('${s['name']}'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() => studentId = v);
-                    }
-                  },
-                ),
-                TextField(
-                  controller: exam,
-                  decoration: const InputDecoration(
-                    labelText: 'Exam Name',
-                    ),
-                ),
-                TextField(
-                  controller: subject,
-                  decoration: const InputDecoration(
-                    labelText: 'Subject',
-                  ),
-                ),
-                TextField(
-                  controller: total,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Total Marks',
-                  ),
-                ),
-                TextField(
-                  controller: obtained,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Obtained Marks',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, true),
-              child: const Text('Save Marks'),
-            ),
-          ],
-        ),
-      ),
-    );
+    final saved = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final student = students.firstWhere((s) => '${s['id']}' == studentId, orElse: () => students.first);
+        final subjects = schoolSubjects('${student['class']}');
+        if (!subjects.contains(selectedSubject)) selectedSubject = subjects.first;
+        return AlertDialog(
+          title: const Text('Add Exam / DMC Marks'),
+          content: SizedBox(width: 430, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String>(value: studentId, decoration: const InputDecoration(labelText: 'Student'),
+              items: students.map((s) => DropdownMenuItem(value: '${s['id']}', child: Text('${s['name']} — ${s['class']}'))).toList(),
+              onChanged: (v) { if (v != null) setDialogState(() { studentId = v; final c = students.firstWhere((s) => '${s['id']}' == v)['class']; selectedSubject = schoolSubjects('$c').first; }); }),
+            Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Class: ${student['class']} • Subjects loaded automatically', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600)))),
+            TextField(controller: exam, decoration: const InputDecoration(labelText: 'Paper / Exam Name')),
+            DropdownButtonFormField<String>(value: selectedSubject, decoration: const InputDecoration(labelText: 'Class Subject'),
+              items: subjects.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(), onChanged: (v) { if (v != null) setDialogState(() => selectedSubject = v); }),
+            TextField(controller: total, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Paper Total Marks')),
+            TextField(controller: obtained, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Obtained / Updated Marks')),
+          ]))),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save Marks'))],
+        );
+      }));
     final maxMarks = double.tryParse(total.text) ?? 0;
-    final gotMarks =
-        double.tryParse(obtained.text) ?? -1;
-
-    if (saved == true &&
-        subject.text.trim().isNotEmpty &&
-        maxMarks > 0 &&
-        gotMarks >= 0 &&
-        gotMarks <= maxMarks) {
-      final student = students.firstWhere(
-        (s) => '${s['id']}' == studentId,
-      );
-
-      onSave([
-        ...marks,
-        {
-          'studentId': studentId,
-          'studentName': student['name'],
-          'roll': student['roll'],
-          'class': student['class'],
-          'exam': exam.text.trim(),
-          'subject': subject.text.trim(),
-          'total': maxMarks,
-          'obtained': gotMarks,
-          'date':
-              DateTime.now().toString().substring(0, 10),},
-      ]);
+    final gotMarks = double.tryParse(obtained.text) ?? -1;
+    if (saved == true && exam.text.trim().isNotEmpty && maxMarks > 0 && gotMarks >= 0 && gotMarks <= maxMarks) {
+      final st = students.firstWhere((s) => '${s['id']}' == studentId);
+      onSave([...marks, {'studentId': studentId, 'studentName': st['name'], 'roll': st['roll'], 'class': st['class'], 'exam': exam.text.trim(), 'subject': selectedSubject, 'total': maxMarks, 'obtained': gotMarks, 'date': DateTime.now().toIso8601String()}]);
+    } else if (saved == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter valid marks. Obtained marks cannot exceed total marks.')));
     }
-
-    exam.dispose();
-    subject.dispose();
-    total.dispose();
-    obtained.dispose();
+    exam.dispose(); total.dispose(); obtained.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(14),
-      children: [
-        FilledButton.icon(
-          onPressed: () => addMarks(context),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Exam Marks'),
-        ),
-        const SizedBox(height: 12),
-        ...marks.reversed.map(
-          (m) => Card(
-            child: ListTile(
-              title: Text(
-                '${m['studentName']} - ${m['subject']}',
-              ),
-              subtitle: Text(
-                '${m['exam']} | ${m['class']}',
-              ),
-              trailing: Text(
-                '${m['obtained']} / ${m['total']}',
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
+    FilledButton.icon(onPressed: () => addMarks(context), icon: const Icon(Icons.add), label: const Text('Add Paper / Update Marks')),
+    const SizedBox(height: 10),
+    ...marks.map((m) => Card(child: ListTile(leading: const Icon(Icons.assignment_turned_in), title: Text('${m['studentName']} • ${m['subject']}'), subtitle: Text('${m['class']} | ${m['exam']} | Total: ${m['total']} | Obtained: ${m['obtained']}'))),
+    if (marks.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No exam marks entered yet')),
+  ]);
 }
-
-// ================= MISSING MODULES ADDED =================
 
 class TransportModule extends StatelessWidget {
   final List<Map<String, dynamic>> records;
@@ -2545,33 +2444,57 @@ class SchoolExpensesModule extends StatelessWidget {
   final ValueChanged<List<Map<String, dynamic>>> onSave;
   const SchoolExpensesModule({super.key, required this.records, required this.onSave});
 
-  Future<void> add(BuildContext context) async {
-    final title = TextEditingController();
-    final category = TextEditingController();
-    final amount = TextEditingController();
+  Future<void> editExpense(BuildContext context, {Map<String, dynamic>? existing, int? index}) async {
+    final item = TextEditingController(text: '${existing?['title'] ?? ''}');
+    final category = TextEditingController(text: '${existing?['category'] ?? ''}');
+    final supplier = TextEditingController(text: '${existing?['supplier'] ?? ''}');
+    final qty = TextEditingController(text: '${existing?['quantity'] ?? '1'}');
+    final unit = TextEditingController(text: '${existing?['unitPrice'] ?? existing?['amount'] ?? ''}');
+    final notes = TextEditingController(text: '${existing?['notes'] ?? ''}');
+    final date = TextEditingController(text: '${existing?['date'] ?? DateTime.now().toString().substring(0,10)}'.split('T').first);
     final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-      title: const Text('Add School Expense'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: title, decoration: const InputDecoration(labelText: 'Description')),
-        TextField(controller: category, decoration: const InputDecoration(labelText: 'Category')),
-        TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount Rs')),
-      ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save'))],
+      title: Text(existing == null ? 'Add Detailed Expense' : 'Edit Expense'),
+      content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: item, decoration: const InputDecoration(labelText: 'What was purchased / expense detail *')),
+        TextField(controller: category, decoration: const InputDecoration(labelText: 'Category (Utilities, Repair, Stationery...)')),
+        TextField(controller: supplier, decoration: const InputDecoration(labelText: 'Shop / Supplier / Paid to')),
+        TextField(controller: qty, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantity')),
+        TextField(controller: unit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Price per unit (Rs.)')),
+        TextField(controller: date, readOnly: true, decoration: const InputDecoration(labelText: 'Expense Date', suffixIcon: Icon(Icons.calendar_month)), onTap: () async { final d = await showDatePicker(context: c, initialDate: DateTime.tryParse(date.text) ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2040)); if (d != null) date.text = d.toString().substring(0,10); }),
+        TextField(controller: notes, maxLines: 2, decoration: const InputDecoration(labelText: 'Notes / Details')),
+      ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save Expense'))],
     ));
-    final value = double.tryParse(amount.text) ?? 0;
-    if (ok == true && title.text.trim().isNotEmpty && value >= 0) {
-      onSave([...records, {'title': title.text.trim(), 'category': category.text.trim(), 'amount': value, 'date': DateTime.now().toIso8601String()}]);
+    final q = double.tryParse(qty.text) ?? 0; final price = double.tryParse(unit.text) ?? 0;
+    if (ok == true && item.text.trim().isNotEmpty && q > 0 && price >= 0) {
+      final row = <String, dynamic>{'title': item.text.trim(), 'category': category.text.trim(), 'supplier': supplier.text.trim(), 'quantity': q, 'unitPrice': price, 'amount': q * price, 'notes': notes.text.trim(), 'date': date.text.trim()};
+      final copy = [...records];
+      if (index == null) { copy.add(row); } else { copy[index] = row; }
+      onSave(copy);
+    } else if (ok == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter description, valid quantity and unit price.')));
     }
-    title.dispose(); category.dispose(); amount.dispose();
+    for (final c in [item, category, supplier, qty, unit, notes, date]) { c.dispose(); }
   }
 
   @override
-  Widget build(BuildContext context) => _SimpleRecordPage(
-    title: 'School Expenses', addLabel: 'Add Expense', records: records,
-    titleOf: (r) => '${r['title']}', subtitleOf: (r) => '${r['category']} • ${r['date']}',
-    amountOf: (r) => r['amount'], onAdd: () => add(context), onSave: onSave,
-  );
+  Widget build(BuildContext context) {
+    final total = records.fold<double>(0, (a, r) => a + (double.tryParse('${r['amount']}') ?? 0));
+    return ListView(padding: const EdgeInsets.all(14), children: [
+      Card(child: ListTile(leading: const Icon(Icons.account_balance_wallet, color: blue), title: const Text('Total School Expenses'), trailing: Text('Rs ${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)))),
+      FilledButton.icon(onPressed: () => editExpense(context), icon: const Icon(Icons.add), label: const Text('Add Detailed Expense')),
+      const SizedBox(height: 8),
+      ...records.asMap().entries.map((e) { final r = e.value; return Card(child: ExpansionTile(
+        leading: const CircleAvatar(child: Icon(Icons.receipt_long)), title: Text('${r['title'] ?? 'Expense'}', style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text('${r['category'] ?? ''} • ${r['date'] ?? ''} • Rs ${r['amount'] ?? 0}'),
+        children: [Padding(padding: const EdgeInsets.fromLTRB(16,0,16,12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Supplier / Paid to: ${r['supplier'] ?? '-'}'), Text('Quantity: ${r['quantity'] ?? 1}'), Text('Unit price: Rs ${r['unitPrice'] ?? r['amount'] ?? 0}'), Text('Total: Rs ${r['amount'] ?? 0}'), Text('Notes: ${r['notes'] ?? '-'}'),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton.icon(onPressed: () => editExpense(context, existing: r, index: e.key), icon: const Icon(Icons.edit), label: const Text('Edit')), TextButton.icon(onPressed: () { final copy = [...records]..removeAt(e.key); onSave(copy); }, icon: const Icon(Icons.delete, color: Colors.red), label: const Text('Delete'))]),
+        ]))],
+      )); }),
+      if (records.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No expense records yet')),
+    ]);
+  }
 }
 
 class _SimpleRecordPage extends StatelessWidget {
@@ -2614,6 +2537,7 @@ class ClassDocumentsModule extends StatefulWidget {
 class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
   String selectedClass = 'First';
   String selectedExam = 'All Exams';
+  String selectedCertificateTheme = 'Blue';
   DateTime feeMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   List<Map<String, dynamic>> get classStudents => widget.students
@@ -2763,18 +2687,36 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           ]),
         )));
       } else {
-        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(35), build: (_) => pw.Center(child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-          pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-          pw.SizedBox(height: 28),
-          pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 25),
-          pw.Text('This is to certify that ${s['name']}, son/daughter of ${s['father']}, Roll No. ${s['roll']}, Class ${s['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
-          pw.SizedBox(height: 24),
-          pw.Text('Date of Birth: ${s['dob'] ?? ''}'),
-          pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
-          pw.SizedBox(height: 45),
-          pw.Text('Principal Signature: __________________'),
-        ]))));
+        final accent = selectedCertificateTheme == 'Green' ? PdfColors.green900 : selectedCertificateTheme == 'Maroon' ? PdfColors.brown900 : PdfColors.blue900;
+        final pale = selectedCertificateTheme == 'Green' ? PdfColors.green50 : selectedCertificateTheme == 'Maroon' ? PdfColors.pink50 : PdfColors.blue50;
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(28), build: (_) => pw.Container(
+          padding: const pw.EdgeInsets.all(24),
+          decoration: pw.BoxDecoration(color: pale, border: pw.Border.all(color: accent, width: 3)),
+          child: pw.Container(padding: const pw.EdgeInsets.all(18), decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue200, width: 1.2)),
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+              pw.Center(child: pw.Text(widget.school.toUpperCase(), textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 23, fontWeight: pw.FontWeight.bold, color: accent))),
+              pw.SizedBox(height: 8), pw.Center(child: pw.Text('OFFICIAL ACADEMIC RECORD', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
+              pw.SizedBox(height: 18), pw.Center(child: pw.Container(padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 10), decoration: pw.BoxDecoration(color: pale, border: pw.Border.all(color: PdfColors.blue300)), child: pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: accent)))),
+              pw.SizedBox(height: 24),
+              pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.Text('Certificate No: ${s['id'] ?? ''}', style: const pw.TextStyle(fontSize: 10)), pw.SizedBox(height: 8),
+                  pw.Text('This is to certify that', style: const pw.TextStyle(fontSize: 12)), pw.SizedBox(height: 8),
+                  pw.Text('${s['name'] ?? ''}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: accent)),
+                  pw.Text('Son / Daughter of ${s['father'] ?? ''}', style: const pw.TextStyle(fontSize: 12)),
+                  pw.SizedBox(height: 12), pw.Text('Admission / Roll No: ${s['roll'] ?? ''}'), pw.Text('Class: ${s['class'] ?? ''}'), pw.Text('Date of Birth: ${s['dob'] ?? ''}'),
+                ])),
+                if (photo != null) pw.Container(width: 88, height: 105, padding: const pw.EdgeInsets.all(3), decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue300)), child: pw.Image(photo, fit: pw.BoxFit.cover)),
+              ]),
+              pw.SizedBox(height: 22),
+              pw.Text('has been a student of this institution. The student's conduct and academic record are maintained in the school register. This certificate is issued on request for official use.', textAlign: pw.TextAlign.justify, style: const pw.TextStyle(fontSize: 12, lineSpacing: 5)),
+              pw.SizedBox(height: 18), pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'),
+              pw.Spacer(), pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Class Teacher
+____________________', textAlign: pw.TextAlign.center), pw.Text('Principal
+____________________', textAlign: pw.TextAlign.center)]),
+              pw.SizedBox(height: 12), pw.Center(child: pw.Text('New Iqra Children Academy • Official School Document', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600))),
+            ])),
+        )));
       }
     }
     await Printing.layoutPdf(onLayout: (_) async => doc.save());
@@ -2806,6 +2748,13 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         decoration: const InputDecoration(labelText: 'Select Exam for DMC'),
         items: ['All Exams', ...examNames].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => selectedExam = v ?? 'All Exams'),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        value: selectedCertificateTheme,
+        decoration: const InputDecoration(labelText: 'Leaving Certificate Design / رنگ منتخب کریں'),
+        items: const ['Blue', 'Green', 'Maroon'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: (v) => setState(() => selectedCertificateTheme = v ?? 'Blue'),
       ),
       const SizedBox(height: 12),
       for (final item in [
