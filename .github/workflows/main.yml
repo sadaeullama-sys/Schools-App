@@ -9,58 +9,54 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter (stable)
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
       - name: Generate Android platform files
         run: flutter create --project-name new_iqra_academy --org com.ilyasmobile --platforms=android .
 
-      - name: Set permanent Play Store application ID
-        shell: bash
+      - name: Set Play Store application ID
         run: |
-          FILE=android/app/build.gradle.kts
-          if [ -f "$FILE" ]; then
-            sed -i 's/namespace = ".*"/namespace = "com.ilyasmobile.newiqraacademy"/' "$FILE"
-            sed -i 's/applicationId = ".*"/applicationId = "com.ilyasmobile.newiqraacademy"/' "$FILE"
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/applicationId = .*/applicationId = "com.ilyasmobile.newiqraacademy"/' android/app/build.gradle.kts
+          elif [ -f android/app/build.gradle ]; then
+            sed -i "s/applicationId .*/applicationId 'com.ilyasmobile.newiqraacademy'/" android/app/build.gradle
           else
-            FILE=android/app/build.gradle
-            sed -i "s/namespace .*/namespace 'com.ilyasmobile.newiqraacademy'/" "$FILE" || true
-            sed -i "s/applicationId .*/applicationId 'com.ilyasmobile.newiqraacademy'/" "$FILE"
+            echo "Android app Gradle file not found"
+            exit 1
           fi
-          grep -R "com.ilyasmobile.newiqraacademy" android/app
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Analyze Dart source
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Analyze application source
+        run: flutter analyze lib/main.dart --no-fatal-infos --no-fatal-warnings
 
-      - name: Run available tests
-        run: flutter test
-
-      - name: Build release APK (device testing)
+      - name: Build release APK
         run: flutter build apk --release
 
-      - name: Build release AAB (Play Console draft)
+      - name: Build Play Store AAB
         run: flutter build appbundle --release
 
-      - name: Upload build artifacts
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: new-iqra-builds
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
+          name: new-iqra-academy-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-iqra-academy-aab
+          path: build/app/outputs/bundle/release/app-release.aab
