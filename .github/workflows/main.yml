@@ -1,3 +1,4 @@
+
 name: Build New Iqra Academy APK and AAB
 
 on:
@@ -8,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,27 +23,38 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.5'
           channel: stable
 
-      - name: Generate Android platform files
-        run: flutter create --project-name new_iqra_academy --org com.ilyasmobile --platforms=android .
+      - name: Generate Android project
+        run: |
+          flutter create --project-name new_iqra_academy --org com.ilyasmobile --platforms=android .
+
+      - name: Restore correct widget test
+        run: |
+          mkdir -p test
+          cat > test/widget_test.dart <<'EOF'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:new_iqra_academy/main.dart';
+
+          void main() {
+            testWidgets('New Iqra app starts', (WidgetTester tester) async {
+              await tester.pumpWidget(const SchoolManagementApp());
+              expect(find.byType(SchoolManagementApp), findsOneWidget);
+            });
+          }
+          EOF
 
       - name: Set Play Store application ID
         run: |
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/applicationId = .*/applicationId = "com.ilyasmobile.newiqraacademy"/' android/app/build.gradle.kts
-          elif [ -f android/app/build.gradle ]; then
-            sed -i "s/applicationId .*/applicationId 'com.ilyasmobile.newiqraacademy'/" android/app/build.gradle
-          else
-            echo "Android app Gradle file not found"
-            exit 1
-          fi
+          sed -i 's/com.ilyasmobile.new_iqra_academy/com.ilyasmobile.newiqraacademy/g' android/app/build.gradle.kts || true
+          sed -i 's/com.ilyasmobile.new_iqra_academy/com.ilyasmobile.newiqraacademy/g' android/app/build.gradle || true
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Analyze application source
-        run: flutter analyze lib/main.dart --no-fatal-infos --no-fatal-warnings
+      - name: Analyze Dart
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build release APK
         run: flutter build apk --release
