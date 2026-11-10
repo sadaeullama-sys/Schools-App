@@ -1124,6 +1124,9 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> transport = [];
   List<Map<String, dynamic>> salaries = [];
   List<Map<String, dynamic>> expenses = [];
+  List<Map<String, dynamic>> notices = [];
+  List<Map<String, dynamic>> syllabusItems = [];
+  List<Map<String, dynamic>> dateSheetItems = [];
 
   @override
   void initState() {
@@ -1141,6 +1144,9 @@ class _HomePageState extends State<HomePage> {
     final t = await readData('academy_transport');
     final sal = await readData('academy_salaries');
     final ex = await readData('academy_expenses');
+    final n = await readData('academy_notices');
+    final sy = await readData('academy_syllabus');
+    final ds = await readData('academy_date_sheet');
 
     if (!mounted) return;
 
@@ -1154,6 +1160,9 @@ class _HomePageState extends State<HomePage> {
       transport = t;
       salaries = sal;
       expenses = ex;
+      notices = n;
+      syllabusItems = sy;
+      dateSheetItems = ds;
     });
   }
 
@@ -1165,6 +1174,9 @@ class _HomePageState extends State<HomePage> {
     await writeData('academy_transport', transport);
     await writeData('academy_salaries', salaries);
     await writeData('academy_expenses', expenses);
+    await writeData('academy_notices', notices);
+    await writeData('academy_syllabus', syllabusItems);
+    await writeData('academy_date_sheet', dateSheetItems);
     await loadAll();
   }
 
@@ -1329,6 +1341,33 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 18),
 
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('School Portals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: navy)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLoginPage())), icon: const Icon(Icons.admin_panel_settings), label: const Text('Admin Login')),
+                  FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RolePortalPage(role: 'Staff'))), icon: const Icon(Icons.badge), label: const Text('Staff Login')),
+                  FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: gold, foregroundColor: Colors.black), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RolePortalPage(role: 'Parent'))), icon: const Icon(Icons.family_restroom), label: const Text('Parent Login')),
+                ]),
+                const SizedBox(height: 6),
+                const Text('Separate staff and parent accounts need to be created by the school administrator.', style: TextStyle(fontSize: 11, color: Colors.black54)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text('Teaching & Communication', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          GridView.count(crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), childAspectRatio: .9, mainAxisSpacing: 8, crossAxisSpacing: 8, children: [
+            _dashboardTile(context, 'Notice Board', Icons.campaign, Colors.pink, 11),
+            _dashboardTile(context, 'Date Sheet', Icons.calendar_month, Colors.cyan, 12),
+            _dashboardTile(context, 'Syllabus', Icons.menu_book, Colors.green, 13),
+          ]),
+          const SizedBox(height: 18),
+
           const Text(
             'Quick Actions',
             style: TextStyle(
@@ -1437,9 +1476,21 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _dashboardTile(BuildContext context, String title, IconData icon, Color color, int page) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => setState(() => selected = page),
+      child: Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircleAvatar(backgroundColor: color.withOpacity(.12), child: Icon(icon, color: color, size: 26)),
+        const SizedBox(height: 7), Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+      ]))),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
+
       dashboard(),
 
       StudentsModule(
@@ -1516,6 +1567,9 @@ class _HomePageState extends State<HomePage> {
       ),
 
       OrganizationChartPage(school: school),
+      SchoolNoticeModule(records: notices, onSave: (v) async { notices = v; await saveAll(); }),
+      SchoolPlannerModule(title: 'Date Sheet', storageKey: 'academy_date_sheet', records: dateSheetItems, onSave: (v) async { dateSheetItems = v; await saveAll(); }, dateMode: true),
+      SchoolPlannerModule(title: 'Syllabus', storageKey: 'academy_syllabus', records: syllabusItems, onSave: (v) async { syllabusItems = v; await saveAll(); }),
     ];
 
     const titles = [
@@ -1530,6 +1584,9 @@ class _HomePageState extends State<HomePage> {
       'Staff Salary',
       'School Expenses',
       'Organization Workflow',
+      'Notice Board',
+      'Date Sheet',
+      'Syllabus',
     ];
 
     const icons = [
@@ -1544,6 +1601,9 @@ class _HomePageState extends State<HomePage> {
       Icons.badge,
       Icons.account_balance_wallet,
       Icons.account_tree,
+      Icons.campaign,
+      Icons.calendar_month,
+      Icons.menu_book,
     ];
 
     return Scaffold(
@@ -1646,6 +1706,64 @@ class _HomePageState extends State<HomePage> {
 }
  // ============== PART 4 ==============
  // STUDENTS, FEES, ATTENDANCE, EXAMS
+
+
+class RolePortalPage extends StatelessWidget {
+  final String role;
+  const RolePortalPage({super.key, required this.role});
+  @override
+  Widget build(BuildContext context) {
+    final user = TextEditingController();
+    final pass = TextEditingController();
+    return Scaffold(appBar: AppBar(title: Text('$role Login')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(role == 'Parent' ? Icons.family_restroom : role == 'Staff' ? Icons.badge : Icons.admin_panel_settings, size: 54, color: navy),
+      const SizedBox(height: 12), Text('$role Portal', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 18), TextField(controller: user, decoration: const InputDecoration(labelText: 'Username / Student ID')),
+      const SizedBox(height: 12), TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+      const SizedBox(height: 16), FilledButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portal accounts are not configured yet. Please ask the school administrator to create secure staff/parent accounts.'))), child: const Text('Login')),
+      const SizedBox(height: 8), const Text('Ask the school administrator for your portal login details.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12)),
+    ]))))));
+  }
+}
+
+class SchoolNoticeModule extends StatefulWidget {
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  const SchoolNoticeModule({super.key, required this.records, required this.onSave});
+  @override
+  State<SchoolNoticeModule> createState() => _SchoolNoticeModuleState();
+}
+class _SchoolNoticeModuleState extends State<SchoolNoticeModule> {
+  late List<Map<String, dynamic>> items;
+  @override
+  void initState() { super.initState(); items = List<Map<String, dynamic>>.from(widget.records); }
+  Future<void> add() async {
+    final title = TextEditingController(); final body = TextEditingController();
+    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Add School Notice'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: title, decoration: const InputDecoration(labelText: 'Notice title')), TextField(controller: body, maxLines: 4, decoration: const InputDecoration(labelText: 'Notice details'))]), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save'))]));
+    if (ok == true && title.text.trim().isNotEmpty) { setState(() => items.insert(0, {'title': title.text.trim(), 'body': body.text.trim(), 'date': DateTime.now().toString().substring(0, 10)})); widget.onSave(items); }
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(backgroundColor: background, body: ListView(padding: const EdgeInsets.all(14), children: [FilledButton.icon(onPressed: add, icon: const Icon(Icons.add), label: const Text('Add Notice')), const SizedBox(height: 10), if (items.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(20), child: Text('No notices yet. Add your first school notice.'))), ...items.asMap().entries.map((e) => Card(child: ListTile(leading: const CircleAvatar(child: Icon(Icons.campaign)), title: Text('${e.value['title'] ?? ''}'), subtitle: Text('${e.value['body'] ?? ''}\n${e.value['date'] ?? ''}'), isThreeLine: true, trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { setState(() => items.removeAt(e.key)); widget.onSave(items); }))))]));
+}
+
+class SchoolPlannerModule extends StatefulWidget {
+  final String title; final String storageKey; final List<Map<String, dynamic>> records; final ValueChanged<List<Map<String, dynamic>>> onSave; final bool dateMode;
+  const SchoolPlannerModule({super.key, required this.title, required this.storageKey, required this.records, required this.onSave, this.dateMode = false});
+  @override
+  State<SchoolPlannerModule> createState() => _SchoolPlannerModuleState();
+}
+class _SchoolPlannerModuleState extends State<SchoolPlannerModule> {
+  late List<Map<String, dynamic>> items;
+  @override
+  void initState() { super.initState(); items = List<Map<String, dynamic>>.from(widget.records); }
+  Future<void> add() async {
+    final cls = TextEditingController(); final subject = TextEditingController(); final detail = TextEditingController(); DateTime date = DateTime.now();
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(title: Text('Add ${widget.title}'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: cls, decoration: const InputDecoration(labelText: 'Class')), TextField(controller: subject, decoration: InputDecoration(labelText: widget.dateMode ? 'Subject / Paper' : 'Subject / Chapter')), if (widget.dateMode) OutlinedButton.icon(onPressed: () async { final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100)); if (d != null) refresh(() => date = d); }, icon: const Icon(Icons.calendar_month), label: Text('${date.day}/${date.month}/${date.year}')), TextField(controller: detail, maxLines: 3, decoration: InputDecoration(labelText: widget.dateMode ? 'Time / Instructions' : 'Syllabus details'))])), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))]));
+    if (ok == true && cls.text.trim().isNotEmpty && subject.text.trim().isNotEmpty) { setState(() => items.add({'class': cls.text.trim(), 'subject': subject.text.trim(), 'detail': detail.text.trim(), 'date': widget.dateMode ? date.toIso8601String().substring(0, 10) : ''})); widget.onSave(items); }
+  }
+  @override
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [FilledButton.icon(onPressed: add, icon: const Icon(Icons.add), label: Text('Add ${widget.title}')), const SizedBox(height: 10), if (items.isEmpty) Card(child: Padding(padding: const EdgeInsets.all(20), child: Text('No ${widget.title.toLowerCase()} entries yet.'))), ...items.asMap().entries.map((e) => Card(child: ListTile(leading: Icon(widget.dateMode ? Icons.event : Icons.menu_book, color: blue), title: Text('${e.value['subject'] ?? ''} — Class ${e.value['class'] ?? ''}'), subtitle: Text('${e.value['date'] ?? ''}  ${e.value['detail'] ?? ''}'), trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { setState(() => items.removeAt(e.key)); widget.onSave(items); }))))]);
+}
 
 class StudentsModule extends StatelessWidget {
   final List<Map<String, dynamic>> students;
