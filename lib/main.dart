@@ -2689,7 +2689,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
             pw.Text('${s['name'] ?? ''}', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: ink)),
             pw.SizedBox(height: 6), pw.Text('Father: ${s['father'] ?? ''}'), pw.Text('Roll No: ${s['roll'] ?? ''}'), pw.Text('Class: ${s['class'] ?? ''}'), pw.Text('DOB: ${s['dob'] ?? ''}'), pw.Text('Phone: ${s['phone'] ?? ''}'),
           ]))]), pw.SizedBox(height: 12), pw.Center(child: pw.Row(mainAxisSize: pw.MainAxisSize.min, children: bars)), pw.SizedBox(height: 8), pw.Text('Student ID: $raw', style: const pw.TextStyle(fontSize: 8)), pw.SizedBox(height: 10), signatureRow('', 'Principal'), pw.SizedBox(height: 8), pw.Text('Education Today  |  Bright Future Tomorrow', style: const pw.TextStyle(fontSize: 8, color: grey)),
-        ]))));
+        ])))));
       } else if (kind == 'FEE SLIP') {
         final monthly = feeOf(s);
         final paid = paidOf(s);
@@ -2704,7 +2704,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           ]), pw.SizedBox(height: 12), pw.Text('PAYMENT HISTORY', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink)),
           if (payments.isEmpty) pw.Text('No payment recorded for this month.', style: const pw.TextStyle(color: grey, fontSize: 9)) else pw.Table.fromTextArray(headerDecoration: const pw.BoxDecoration(color: pale), headers: ['Date', 'Received (Rs.)'], data: payments.map((x) => ['${x['date'] ?? ''}', '${x['amount'] ?? 0}']).toList()),
           pw.Spacer(), pw.Container(padding: const pw.EdgeInsets.all(10), color: pale, child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('PAID: Rs. ${paid.toStringAsFixed(0)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: ink)), pw.Text('DUE: Rs. ${due.toStringAsFixed(0)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.red800))])), pw.SizedBox(height: 28), signatureRow('Cashier Signature', 'Parent Signature'),
-        ]))));
+        ])))));
       } else if (kind == 'DMC') {
         final rows = widget.marks.where((m) => '${m['studentId']}' == '${s['id']}' && (selectedExam == 'All Exams' || '${m['exam']}' == selectedExam)).toList();
         final total = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
@@ -2716,7 +2716,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           pw.Row(children: [photoBox(62, 72), pw.SizedBox(width: 12), pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [pw.Text('Name: ${s['name'] ?? ''}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: ink)), pw.Text('Father: ${s['father'] ?? ''}'), pw.Text('Class: ${s['class']}   Roll No: ${s['roll']}'), pw.Text('Exam: $selectedExam   Session: ${DateTime.now().year}')]))]), pw.SizedBox(height: 16),
           pw.Table.fromTextArray(headerDecoration: const pw.BoxDecoration(color: ink), headerStyle: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9), cellStyle: const pw.TextStyle(fontSize: 9), cellPadding: const pw.EdgeInsets.all(7), border: pw.TableBorder.all(color: PdfColors.blue100), headers: ['Sr', 'Subject', 'Total', 'Obtained', '%', 'Grade'], data: rows.asMap().entries.map((e) { final m=e.value; final t=double.tryParse('${m['total']}')??0; final o=double.tryParse('${m['obtained']}')??0; final pc=t>0?o/t*100:0.0; final g=pc>=90?'A+':pc>=80?'A':pc>=70?'B':pc>=60?'C':pc>=50?'D':'F'; return ['${e.key+1}','${m['subject']}',t.toStringAsFixed(0),o.toStringAsFixed(0),'${pc.toStringAsFixed(0)}% ',g]; }).toList()),
           pw.SizedBox(height: 16), pw.Container(padding: const pw.EdgeInsets.all(12), decoration: pw.BoxDecoration(color: pale, borderRadius: pw.BorderRadius.circular(8)), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [pw.Text('Total Marks: ${total.toStringAsFixed(0)}     Obtained: ${obtained.toStringAsFixed(0)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: ink)), pw.Text('Percentage: ${percent.toStringAsFixed(2)}%     Grade: $grade'), pw.Text('Result: ${rows.isEmpty ? 'NO MARKS' : percent >= 33 ? 'PASS' : 'FAIL'}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: percent >= 33 ? PdfColors.green800 : PdfColors.red800))]),), pw.Spacer(), signatureRow('Class Teacher', 'Principal'), pw.SizedBox(height: 10), pw.Center(child: pw.Text('School-issued academic record', style: const pw.TextStyle(fontSize: 8, color: grey))),
-        ]))));
+        ])))));
       } else {
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(30), build: (_) => pw.Container(padding: const pw.EdgeInsets.all(22), decoration: pw.BoxDecoration(border: pw.Border.all(color: gold, width: 3), borderRadius: pw.BorderRadius.circular(8)), child: pw.Container(padding: const pw.EdgeInsets.all(16), decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.orange200, width: 1)), child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
           schoolHeader('SCHOOL LEAVING CERTIFICATE'), pw.SizedBox(height: 18), pw.Center(child: pw.Text('LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.brown800))), pw.SizedBox(height: 12),
@@ -2724,7 +2724,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           pw.Text('This is to certify that', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 12, color: grey)), pw.SizedBox(height: 8), pw.Text('${s['name'] ?? ''}', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 21, fontWeight: pw.FontWeight.bold, color: ink)), pw.SizedBox(height: 8),
           pw.Text('S/o / D/o ${s['father'] ?? ''}, Roll No. ${s['roll'] ?? ''}, Class ${s['class'] ?? ''}, was a bonafide student of this institution. The student is hereby granted this School Leaving Certificate on request.', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 12, lineSpacing: 5)), pw.SizedBox(height: 20),
           pw.Text('Date of Birth: ${s['dob'] ?? ''}'), pw.Text('Admission Date: ${s['admissionDate'] ?? ''}'), pw.Text('Date of Issue: ${DateTime.now().toString().substring(0,10)}'), pw.Spacer(), signatureRow('Class Teacher', 'Principal'), pw.SizedBox(height: 20), pw.Center(child: pw.Text('NEW IQRA CHILDREN ACADEMY', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: ink))),
-        ]))));
+        ])))));
       }
     }
     await Printing.layoutPdf(onLayout: (_) async => doc.save());
@@ -2807,7 +2807,7 @@ class StudentIDCard extends StatelessWidget {
         photo == null ? pw.Container(width: 82, height: 96, color: pale, child: pw.Center(child: pw.Text('PHOTO', style: pw.TextStyle(color: blue)))) : pw.Container(width: 82, height: 96, child: pw.Image(photo, fit: pw.BoxFit.cover)),
         pw.SizedBox(width: 12), pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [pw.Text('${student['name'] ?? ''}', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold, color: ink)), pw.SizedBox(height: 5), pw.Text('Father: ${student['father'] ?? ''}'), pw.Text('Roll: ${student['roll'] ?? ''}'), pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('DOB: ${student['dob'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}')]))]),
       pw.SizedBox(height: 12), pw.Row(mainAxisSize: pw.MainAxisSize.min, children: bars), pw.SizedBox(height: 6), pw.Text('Student ID: $raw', style: const pw.TextStyle(fontSize: 8)), pw.SizedBox(height: 12), pw.Row(mainAxisAlignment: pw.MainAxisAlignment.end, children: [pw.Column(children: [pw.Container(width: 120, height: 1, color: ink), pw.SizedBox(height: 4), pw.Text('Principal', style: const pw.TextStyle(fontSize: 9))])]),
-    ]))));
+    ])))));
     await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
