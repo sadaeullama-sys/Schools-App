@@ -12,6 +12,9 @@ import 'package:printing/printing.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+  };
   runApp(const SchoolManagementApp());
 }
 
@@ -71,35 +74,61 @@ class _StartPageState extends State<StartPage> {
     checkApp();
   }
 
+  String? startupError;
+
   Future<void> checkApp() async {
-    final p = await SharedPreferences.getInstance();
+    try {
+      // Allow the first frame to render before loading local preferences.
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final p = await SharedPreferences.getInstance();
 
-    final active = p.getBool('academy_license_active') ?? false;
-    final username = p.getString('academy_customer_username') ?? '';
+      final active = p.getBool('academy_license_active') ?? false;
+      final username = p.getString('academy_customer_username') ?? '';
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Widget next;
+      final Widget next = !active
+          ? const LicensePage()
+          : (username.isEmpty ? const SetupPage() : const LoginPage());
 
-    if (!active) {
-      next = const LicensePage();
-    } else if (username.isEmpty) {
-      next = const SetupPage();
-    } else {
-      next = const LoginPage();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => next),
+      );
+    } catch (e, st) {
+      debugPrint('New Iqra startup error: $e\n$st');
+      if (!mounted) return;
+      setState(() => startupError = e.toString());
     }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => next),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    if (startupError != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, size: 54, color: Colors.orange),
+                  const SizedBox(height: 12),
+                  const Text('App startup problem', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('The app could not load its saved settings. Please try again.'),
+                  const SizedBox(height: 8),
+                  SelectableText(startupError!, textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(onPressed: () => setState(() => startupError = null), child: const Text('Retry')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -1095,9 +1124,6 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> transport = [];
   List<Map<String, dynamic>> salaries = [];
   List<Map<String, dynamic>> expenses = [];
-  List<Map<String, dynamic>> notices = [];
-  List<Map<String, dynamic>> syllabi = [];
-  List<Map<String, dynamic>> dateSheets = [];
 
   @override
   void initState() {
@@ -1115,9 +1141,6 @@ class _HomePageState extends State<HomePage> {
     final t = await readData('academy_transport');
     final sal = await readData('academy_salaries');
     final ex = await readData('academy_expenses');
-    final no = await readData('academy_notices');
-    final sy = await readData('academy_syllabi');
-    final ds = await readData('academy_date_sheets');
 
     if (!mounted) return;
 
@@ -1131,9 +1154,6 @@ class _HomePageState extends State<HomePage> {
       transport = t;
       salaries = sal;
       expenses = ex;
-      notices = no;
-      syllabi = sy;
-      dateSheets = ds;
     });
   }
 
@@ -1145,9 +1165,6 @@ class _HomePageState extends State<HomePage> {
     await writeData('academy_transport', transport);
     await writeData('academy_salaries', salaries);
     await writeData('academy_expenses', expenses);
-    await writeData('academy_notices', notices);
-    await writeData('academy_syllabi', syllabi);
-    await writeData('academy_date_sheets', dateSheets);
     await loadAll();
   }
 
@@ -1499,10 +1516,6 @@ class _HomePageState extends State<HomePage> {
       ),
 
       OrganizationChartPage(school: school),
-
-      SchoolBoardModule(title: 'Notice Board', icon: Icons.campaign, records: notices, fields: const ['Title', 'Message', 'Date', 'For Class'], onSave: (v) async { notices = v; await saveAll(); }),
-      SchoolBoardModule(title: 'Class Syllabus', icon: Icons.menu_book, records: syllabi, fields: const ['Class', 'Subject', 'Syllabus Details', 'Session'], onSave: (v) async { syllabi = v; await saveAll(); }),
-      SchoolBoardModule(title: 'Exam Date Sheet', icon: Icons.calendar_month, records: dateSheets, fields: const ['Exam Name', 'Class', 'Subject', 'Exam Date', 'Time'], onSave: (v) async { dateSheets = v; await saveAll(); }),
     ];
 
     const titles = [
@@ -1517,9 +1530,6 @@ class _HomePageState extends State<HomePage> {
       'Staff Salary',
       'School Expenses',
       'Organization Workflow',
-      'Notice Board',
-      'Syllabus',
-      'Date Sheet',
     ];
 
     const icons = [
@@ -1534,9 +1544,6 @@ class _HomePageState extends State<HomePage> {
       Icons.badge,
       Icons.account_balance_wallet,
       Icons.account_tree,
-      Icons.campaign,
-      Icons.menu_book,
-      Icons.calendar_month,
     ];
 
     return Scaffold(
@@ -1637,47 +1644,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-// ============== NOTICE / SYLLABUS / DATE SHEET ==============
-class SchoolBoardModule extends StatefulWidget {
-  final String title;
-  final IconData icon;
-  final List<Map<String, dynamic>> records;
-  final List<String> fields;
-  final ValueChanged<List<Map<String, dynamic>>> onSave;
-  const SchoolBoardModule({super.key, required this.title, required this.icon, required this.records, required this.fields, required this.onSave});
-  @override
-  State<SchoolBoardModule> createState() => _SchoolBoardModuleState();
-}
-class _SchoolBoardModuleState extends State<SchoolBoardModule> {
-  late List<Map<String, dynamic>> rows;
-  @override
-  void initState() { super.initState(); rows = widget.records.map((e) => Map<String, dynamic>.from(e)).toList(); }
-  Future<void> addOrEdit([int? index]) async {
-    final controllers = <TextEditingController>[];
-    final old = index == null ? <String, dynamic>{} : rows[index];
-    for (final f in widget.fields) { controllers.add(TextEditingController(text: '${old[f] ?? ''}')); }
-    final result = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(index == null ? 'Add ${widget.title}' : 'Edit ${widget.title}'),
-      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [for (int i=0;i<widget.fields.length;i++) Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: controllers[i], maxLines: widget.fields[i].contains('Details') || widget.fields[i]=='Message' ? 3 : 1, decoration: InputDecoration(labelText: widget.fields[i])))])),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
-    ));
-    if (result == true) { final item = <String, dynamic>{}; for (int i=0;i<widget.fields.length;i++) { item[widget.fields[i]] = controllers[i].text.trim(); } setState(() { if (index == null) { rows.add(item); } else { rows[index] = item; } }); widget.onSave(rows); }
-    for (final c in controllers) { c.dispose(); }
-  }
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: ListView(padding: const EdgeInsets.all(14), children: [
-      Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(gradient: const LinearGradient(colors: [navy, blue]), borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(widget.icon, color: Colors.white, size: 34), const SizedBox(width: 12), Expanded(child: Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)))])),
-      const SizedBox(height: 14),
-      FilledButton.icon(onPressed: () => addOrEdit(), icon: const Icon(Icons.add), label: Text('Add ${widget.title}')),
-      const SizedBox(height: 10),
-      if (rows.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(20), child: Text('No records added yet. Tap Add to create a record.'))),
-      ...List.generate(rows.length, (i) => Card(child: ListTile(leading: CircleAvatar(backgroundColor: lightBlue, child: Icon(widget.icon, color: navy)), title: Text('${rows[i][widget.fields.first] ?? widget.title}', maxLines: 1, overflow: TextOverflow.ellipsis), subtitle: Text(widget.fields.skip(1).map((f) => '$f: ${rows[i][f] ?? ''}').join('\n'), maxLines: 3, overflow: TextOverflow.ellipsis), isThreeLine: true, trailing: PopupMenuButton<String>(onSelected: (v) { if (v=='edit') addOrEdit(i); if (v=='delete') { setState(() => rows.removeAt(i)); widget.onSave(rows); } }, itemBuilder: (_) => const [PopupMenuItem(value:'edit', child: Text('Edit')), PopupMenuItem(value:'delete', child: Text('Delete'))])))),
-    ]),
-  );
-}
-
  // ============== PART 4 ==============
  // STUDENTS, FEES, ATTENDANCE, EXAMS
 
