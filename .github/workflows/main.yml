@@ -1,4 +1,4 @@
-name: New Iqra Android Build
+name: Build New Iqra Academy APK and AAB
 
 on:
   workflow_dispatch:
@@ -9,49 +9,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.5'
           channel: stable
-          cache: true
-
-      # The generated Android application ID is:
-      # com.ilyasmobile.newiqraacademy
-      - name: Generate Android platform project
-        run: flutter create --org com.ilyasmobile --project-name newiqraacademy --platforms=android --no-pub .
-
-      - name: Verify Android application ID
-        shell: bash
+      - name: Generate Android project
+        run: flutter create --project-name new_iqra_academy --org com.ilyasmobile --platforms=android .
+      - name: Set Play Store application ID
         run: |
-          grep -R -E 'com\.ilyasmobile\.newiqraacademy' android/app
-
-      - name: Get Flutter packages
+          sed -i 's/applicationId = "com.ilyasmobile.new_iqra_academy"/applicationId = "com.ilyasmobile.newiqraacademy"/' android/app/build.gradle.kts || true
+          sed -i "s/applicationId 'com.ilyasmobile.new_iqra_academy'/applicationId 'com.ilyasmobile.newiqraacademy'/" android/app/build.gradle || true
+      - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze Dart source
-        run: flutter analyze lib --no-pub
-        continue-on-error: true
-
-      - name: Build APK for device testing
+      - name: Analyze Dart
+        run: flutter analyze
+      - name: Build release APK
         run: flutter build apk --release
-
-      - name: Build Android App Bundle
+      - name: Build Play Store AAB
         run: flutter build appbundle --release
-
-      - name: Upload APK and AAB artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: new-iqra-android-builds
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
+          name: new-iqra-academy-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: new-iqra-academy-aab
+          path: build/app/outputs/bundle/release/app-release.aab
