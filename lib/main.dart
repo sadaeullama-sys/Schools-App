@@ -12,24 +12,9 @@ import 'package:printing/printing.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Keep Flutter framework errors visible in Android logcat instead of
-  // silently losing the diagnostic information.
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    debugPrint('Flutter framework error: ${details.exceptionAsString()}');
-    if (details.stack != null) {
-      debugPrintStack(stackTrace: details.stack);
-    }
   };
-
-  // Report uncaught asynchronous/platform-dispatch errors for diagnosis.
-  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-    debugPrint('Uncaught app error: $error');
-    debugPrintStack(stackTrace: stack);
-    return true;
-  };
-
   runApp(const SchoolManagementApp());
 }
 
