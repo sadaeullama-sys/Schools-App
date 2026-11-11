@@ -1529,6 +1529,7 @@ class _HomePageState extends State<HomePage> {
               _dashboardTile(context, 'Stock Management', Icons.inventory_2, Colors.indigo, 14),
               _dashboardTile(context, 'Stock Giving', Icons.inventory, Colors.green, 14),
               _dashboardTile(context, 'Parent Management', Icons.family_restroom, Colors.deepOrange, 15),
+              _dashboardTile(context, 'Staff Management', Icons.badge, Colors.teal, 16),
             ]),
           const SizedBox(height: 14),
           const Text('Teaching & Communication', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
@@ -1744,6 +1745,7 @@ class _HomePageState extends State<HomePage> {
       SchoolPlannerModule(title: 'Syllabus', storageKey: 'academy_syllabus', records: syllabusItems, onSave: (v) async { syllabusItems = v; await saveAll(); }),
       const StockManagementPage(),
       ParentRequestsAdminPage(students: students),
+      const StaffManagementPage(),
     ];
 
     const titles = [
@@ -1763,6 +1765,7 @@ class _HomePageState extends State<HomePage> {
       'Syllabus',
       'Stock Management / Stock Giving',
       'Parent Management',
+      'Staff Management',
     ];
 
     const icons = [
@@ -1782,6 +1785,7 @@ class _HomePageState extends State<HomePage> {
       Icons.menu_book,
       Icons.inventory_2,
       Icons.family_restroom,
+      Icons.badge,
     ];
 
     return Scaffold(
@@ -1952,16 +1956,8 @@ class _RolePortalPageState extends State<RolePortalPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.role != 'Parent') {
-      return Scaffold(
-        appBar: AppBar(title: Text('${widget.role} Login')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Staff accounts will be enabled by the school administrator.'),
-          ),
-        ),
-      );
+    if (widget.role == 'Staff') {
+      return StaffLoginPage();
     }
     return Scaffold(
       appBar: AppBar(title: const Text('Parent Login')),
@@ -2079,10 +2075,12 @@ class _ParentRequestPageState extends State<ParentRequestPage> {
         email: email.text.trim(),
         password: password.text,
       );
+      final parentAccountId = 'P-${credential.user!.uid.substring(0, 8).toUpperCase()}';
       await FirebaseFirestore.instance
           .collection('parentRequests')
           .doc(credential.user!.uid)
           .set({
+        'parentId': parentAccountId,
         'uid': credential.user!.uid,
         'parentName': parentName.text.trim(),
         'phone': phone.text.trim(),
@@ -2096,7 +2094,7 @@ class _ParentRequestPageState extends State<ParentRequestPage> {
       await FirebaseAuth.instance.signOut();
       setState(() {
         loading = false;
-        message = 'Request sent successfully. Wait for Principal approval.';
+        message = 'Request sent. Parent ID: $parentAccountId. Keep your email and password for login. Wait for Principal approval.';
       });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -2477,6 +2475,94 @@ class ParentApprovedPage extends StatelessWidget {
       ),
     );
   }
+}
+
+// ============== STAFF MANAGEMENT & STAFF LOGIN ==============
+class StaffManagementPage extends StatefulWidget {
+  const StaffManagementPage({super.key});
+  @override
+  State<StaffManagementPage> createState() => _StaffManagementPageState();
+}
+class _StaffManagementPageState extends State<StaffManagementPage> {
+  List<Map<String, dynamic>> staff = [];
+  bool loading = true;
+  @override
+  void initState() { super.initState(); load(); }
+  Future<void> load() async {
+    final data = await readData('academy_staff_accounts');
+    if (mounted) setState(() { staff = data; loading = false; });
+  }
+  Future<void> save() async => writeData('academy_staff_accounts', staff);
+  Future<void> addStaff([Map<String, dynamic>? old]) async {
+    final name = TextEditingController(text: '${old?['name'] ?? ''}');
+    final phone = TextEditingController(text: '${old?['phone'] ?? ''}');
+    final role = TextEditingController(text: '${old?['designation'] ?? ''}');
+    final pass = TextEditingController(text: '${old?['password'] ?? ''}');
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: Text(old == null ? 'Create Staff Account' : 'Edit Staff Account'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'Staff Name')),
+        TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number')),
+        TextField(controller: role, decoration: const InputDecoration(labelText: 'Designation')),
+        TextField(controller: pass, decoration: const InputDecoration(labelText: 'Set Password (minimum 6 characters)')),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
+    ));
+    if (ok == true) {
+      if (name.text.trim().isEmpty || pass.text.length < 6) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter staff name and password of at least 6 characters.')));
+      } else {
+        final id = old?['staffId'] ?? 'STF-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+        final record = {'staffId': id, 'name': name.text.trim(), 'phone': phone.text.trim(), 'designation': role.text.trim(), 'password': pass.text, 'createdAt': old?['createdAt'] ?? DateTime.now().toIso8601String()};
+        setState(() { staff.removeWhere((e) => e['staffId'] == id); staff.add(record); });
+        await save();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Staff account saved. Staff ID: $id')));
+      }
+    }
+    name.dispose(); phone.dispose(); role.dispose(); pass.dispose();
+  }
+  Future<void> removeStaff(String id) async {
+    setState(() => staff.removeWhere((e) => e['staffId'] == id)); await save();
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Staff Management')),
+    floatingActionButton: FloatingActionButton.extended(onPressed: () => addStaff(), icon: const Icon(Icons.person_add), label: const Text('Create Staff')),
+    body: loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(14), children: [
+      const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Create a unique Staff ID and password for each staff member. Share the login details privately.'))),
+      if (staff.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No staff accounts created yet.')),
+      ...staff.map((e) => Card(child: ListTile(leading: const CircleAvatar(child: Icon(Icons.badge)), title: Text('${e['name']}'), subtitle: Text('ID: ${e['staffId']}  •  ${e['designation']}\nMobile: ${e['phone']}'), isThreeLine: true,
+        trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') addStaff(e); if (v == 'delete') removeStaff('${e['staffId']}'); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit')), PopupMenuItem(value: 'delete', child: Text('Delete'))]))),
+    ]),
+  );
+}
+
+class StaffLoginPage extends StatefulWidget {
+  StaffLoginPage({super.key});
+  @override
+  State<StaffLoginPage> createState() => _StaffLoginPageState();
+}
+class _StaffLoginPageState extends State<StaffLoginPage> {
+  final id = TextEditingController(); final password = TextEditingController();
+  String message = ''; bool busy = false;
+  @override
+  void dispose() { id.dispose(); password.dispose(); super.dispose(); }
+  Future<void> login() async {
+    setState(() { busy = true; message = ''; });
+    final staff = await readData('academy_staff_accounts');
+    final found = staff.where((e) => '${e['staffId']}'.toLowerCase() == id.text.trim().toLowerCase() && '${e['password']}' == password.text).toList();
+    if (!mounted) return;
+    setState(() { busy = false; message = found.isEmpty ? 'Staff ID or password is incorrect.' : 'Welcome ${found.first['name']}. Please contact Principal for your permitted modules.'; });
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Staff Login')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+    const Icon(Icons.badge, size: 56, color: navy), const SizedBox(height: 12), const Text('Staff Portal', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
+    const SizedBox(height: 16), TextField(controller: id, decoration: const InputDecoration(labelText: 'Staff ID')),
+    const SizedBox(height: 10), TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+    if (message.isNotEmpty) Padding(padding: const EdgeInsets.all(10), child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: message.startsWith('Welcome') ? Colors.green : Colors.red))),
+    SizedBox(width: double.infinity, child: FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Login'))),
+  ]))))));
 }
 
 // ============== STOCK MANAGEMENT & STOCK GIVING ==============
