@@ -2850,6 +2850,30 @@ class ClassDocumentsModule extends StatefulWidget {
 class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
   String selectedClass = 'First';
   String selectedExam = 'All Exams';
+  int selectedDesign = 0;
+
+  // Four professional PDF themes shared by all school documents.
+  PdfColor get designColor => [
+    designColor,
+    PdfColors.teal800,
+    PdfColors.purple900,
+    PdfColors.brown900,
+  ][selectedDesign];
+
+  PdfColor get designLight => [
+    PdfColors.blue50,
+    PdfColors.teal50,
+    PdfColors.purple50,
+    PdfColors.orange50,
+  ][selectedDesign];
+
+  String get designName => [
+    'Classic Blue',
+    'Emerald Green',
+    'Royal Purple',
+    'Professional Maroon',
+  ][selectedDesign];
+
   DateTime feeMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   List<Map<String, dynamic>> get classStudents => widget.students
@@ -2895,13 +2919,13 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
           width: 350, padding: const pw.EdgeInsets.all(18),
           decoration: pw.BoxDecoration(
-            color: PdfColors.white,
-            border: pw.Border.all(color: PdfColors.blue900, width: 2),
+            color: designLight,
+            border: pw.Border.all(color: designColor, width: selectedDesign == 0 ? 2 : 3),
             borderRadius: pw.BorderRadius.circular(14),
           ),
           child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-            pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-            pw.Text('STUDENT IDENTITY CARD', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+            pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: designColor)),
+            pw.Text('STUDENT IDENTITY CARD • $designName', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: designColor)),
             pw.SizedBox(height: 12),
             if (photo != null) pw.Container(width: 82, height: 92, child: pw.Image(photo, fit: pw.BoxFit.cover)),
             pw.SizedBox(height: 8),
@@ -2923,10 +2947,10 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
           '${f['studentId']}' == '${s['id']}' && '${f['month']}' == monthKey).toList();
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, margin: const pw.EdgeInsets.all(22), build: (_) => pw.Container(
           padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          decoration: pw.BoxDecoration(color: designLight, border: pw.Border.all(color: designColor, width: selectedDesign == 0 ? 2 : 3)),
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
-            pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: designColor))),
+            pw.Center(child: pw.Text('MONTHLY FEE VOUCHER • $designName', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
             pw.Divider(thickness: 2),
             pw.Text('Voucher No: ${s['id']}-$monthKey'),
             pw.Text('Issue Date: ${DateTime.now().toString().substring(0,10)}'),
@@ -2962,10 +2986,10 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         final grade = percent >= 90 ? 'A+' : percent >= 80 ? 'A' : percent >= 70 ? 'B' : percent >= 60 ? 'C' : percent >= 50 ? 'D' : 'Needs Improvement';
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(28), build: (_) => pw.Container(
           padding: const pw.EdgeInsets.all(18),
-          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          decoration: pw.BoxDecoration(color: designLight, border: pw.Border.all(color: designColor, width: selectedDesign == 0 ? 2 : 3)),
           child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
-            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
-            pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold))),
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: designColor))),
+            pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE • $designName', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold))),
             pw.Divider(thickness: 2),
             pw.Text('Student Name: ${s['name']}'),
             pw.Text('Father Name: ${s['father'] ?? ''}'),
@@ -3000,9 +3024,9 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         )));
       } else {
         doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(35), build: (_) => pw.Center(child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
-          pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+          pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: designColor)),
           pw.SizedBox(height: 28),
-          pw.Text('SCHOOL LEAVING CERTIFICATE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          pw.Text('SCHOOL LEAVING CERTIFICATE • $designName', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 25),
           pw.Text('This is to certify that ${s['name']}, son/daughter of ${s['father']}, Roll No. ${s['roll']}, Class ${s['class']}, was a student of this institution.', textAlign: pw.TextAlign.center),
           pw.SizedBox(height: 24),
@@ -3042,6 +3066,21 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         decoration: const InputDecoration(labelText: 'Select Exam for DMC'),
         items: ['All Exams', ...examNames].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: (v) => setState(() => selectedExam = v ?? 'All Exams'),
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<int>(
+        value: selectedDesign,
+        decoration: const InputDecoration(
+          labelText: 'Select Professional PDF Design',
+          helperText: 'Used for DMC, Student ID, Fee Voucher and Leaving Certificate',
+        ),
+        items: const [
+          DropdownMenuItem(value: 0, child: Text('1. Classic Blue')),
+          DropdownMenuItem(value: 1, child: Text('2. Emerald Green')),
+          DropdownMenuItem(value: 2, child: Text('3. Royal Purple')),
+          DropdownMenuItem(value: 3, child: Text('4. Professional Maroon')),
+        ],
+        onChanged: (v) => setState(() => selectedDesign = v ?? 0),
       ),
       const SizedBox(height: 12),
       for (final item in [
