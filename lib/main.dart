@@ -1757,10 +1757,99 @@ class _SchoolPlannerModuleState extends State<SchoolPlannerModule> {
   @override
   void initState() { super.initState(); items = List<Map<String, dynamic>>.from(widget.records); }
   Future<void> add() async {
-    final cls = TextEditingController(); final subject = TextEditingController(); final detail = TextEditingController(); DateTime date = DateTime.now();
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(title: Text('Add ${widget.title}'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: cls, decoration: const InputDecoration(labelText: 'Class')), TextField(controller: subject, decoration: InputDecoration(labelText: widget.dateMode ? 'Subject / Paper' : 'Subject / Chapter')), if (widget.dateMode) OutlinedButton.icon(onPressed: () async { final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100)); if (d != null) refresh(() => date = d); }, icon: const Icon(Icons.calendar_month), label: Text('${date.day}/${date.month}/${date.year}')), TextField(controller: detail, maxLines: 3, decoration: InputDecoration(labelText: widget.dateMode ? 'Time / Instructions' : 'Syllabus details'))])), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))]));
-    if (ok == true && cls.text.trim().isNotEmpty && subject.text.trim().isNotEmpty) { setState(() => items.add({'class': cls.text.trim(), 'subject': subject.text.trim(), 'detail': detail.text.trim(), 'date': widget.dateMode ? date.toIso8601String().substring(0, 10) : ''})); widget.onSave(items); }
+    final cls = TextEditingController();
+    final subject = TextEditingController();
+    final detail = TextEditingController();
+    DateTime date = DateTime.now();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, refresh) {
+            return AlertDialog(
+              title: Text('Add ${widget.title}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: cls,
+                      decoration: const InputDecoration(labelText: 'Class'),
+                    ),
+                    TextField(
+                      controller: subject,
+                      decoration: InputDecoration(
+                        labelText: widget.dateMode
+                            ? 'Subject / Paper'
+                            : 'Subject / Chapter',
+                      ),
+                    ),
+                    if (widget.dateMode)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final d = await showDatePicker(
+                            context: ctx,
+                            initialDate: date,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (d != null) {
+                            refresh(() => date = d);
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                        label: Text('${date.day}/${date.month}/${date.year}'),
+                      ),
+                    TextField(
+                      controller: detail,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: widget.dateMode
+                            ? 'Time / Instructions'
+                            : 'Syllabus details',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (ok == true &&
+        cls.text.trim().isNotEmpty &&
+        subject.text.trim().isNotEmpty) {
+      setState(() {
+        items.add({
+          'class': cls.text.trim(),
+          'subject': subject.text.trim(),
+          'detail': detail.text.trim(),
+          'date': widget.dateMode
+              ? date.toIso8601String().substring(0, 10)
+              : '',
+        });
+      });
+      widget.onSave(items);
+    }
+
+    cls.dispose();
+    subject.dispose();
+    detail.dispose();
   }
+
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [FilledButton.icon(onPressed: add, icon: const Icon(Icons.add), label: Text('Add ${widget.title}')), const SizedBox(height: 10), if (items.isEmpty) Card(child: Padding(padding: const EdgeInsets.all(20), child: Text('No ${widget.title.toLowerCase()} entries yet.'))), ...items.asMap().entries.map((e) => Card(child: ListTile(leading: Icon(widget.dateMode ? Icons.event : Icons.menu_book, color: blue), title: Text('${e.value['subject'] ?? ''} — Class ${e.value['class'] ?? ''}'), subtitle: Text('${e.value['date'] ?? ''}  ${e.value['detail'] ?? ''}'), trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { setState(() => items.removeAt(e.key)); widget.onSave(items); }))))]);
 }
