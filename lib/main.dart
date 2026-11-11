@@ -2533,7 +2533,16 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
       const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Create a unique Staff ID and password for each staff member. Share the login details privately.'))),
       if (staff.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No staff accounts created yet.')),
       ...staff.map((e) => Card(child: ListTile(leading: const CircleAvatar(child: Icon(Icons.badge)), title: Text('${e['name']}'), subtitle: Text('ID: ${e['staffId']}  •  ${e['designation']}\nMobile: ${e['phone']}'), isThreeLine: true,
-        trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') addStaff(e); if (v == 'delete') removeStaff('${e['staffId']}'); }, itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Edit')), PopupMenuItem(value: 'delete', child: Text('Delete'))]))),
+        trailing: PopupMenuButton<String>(
+          onSelected: (v) {
+            if (v == 'edit') addStaff(e);
+            if (v == 'delete') removeStaff('${e['staffId']}');
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'edit', child: Text('Edit')),
+            PopupMenuItem(value: 'delete', child: Text('Delete')),
+          ],
+        )))),
     ]),
   );
 }
@@ -2556,13 +2565,51 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     setState(() { busy = false; message = found.isEmpty ? 'Staff ID or password is incorrect.' : 'Welcome ${found.first['name']}. Please contact Principal for your permitted modules.'; });
   }
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Staff Login')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
-    const Icon(Icons.badge, size: 56, color: navy), const SizedBox(height: 12), const Text('Staff Portal', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
-    const SizedBox(height: 16), TextField(controller: id, decoration: const InputDecoration(labelText: 'Staff ID')),
-    const SizedBox(height: 10), TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
-    if (message.isNotEmpty) Padding(padding: const EdgeInsets.all(10), child: Text(message, textAlign: TextAlign.center, style: TextStyle(color: message.startsWith('Welcome') ? Colors.green : Colors.red))),
-    SizedBox(width: double.infinity, child: FilledButton(onPressed: busy ? null : login, child: busy ? const CircularProgressIndicator() : const Text('Login'))),
-  ]))))));
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Staff Login')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.badge, size: 56, color: navy),
+                    const SizedBox(height: 12),
+                    const Text('Staff Portal', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(controller: id, decoration: const InputDecoration(labelText: 'Staff ID')),
+                    const SizedBox(height: 10),
+                    TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+                    if (message.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Text(message, textAlign: TextAlign.center,
+                          style: TextStyle(color: message.startsWith('Welcome') ? Colors.green : Colors.red)),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: busy ? null : login,
+                        child: busy ? const CircularProgressIndicator() : const Text('Login'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 // ============== STOCK MANAGEMENT & STOCK GIVING ==============
