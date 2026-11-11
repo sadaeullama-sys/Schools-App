@@ -2264,7 +2264,7 @@ class _ParentRequestsAdminPageState extends State<ParentRequestsAdminPage> {
       });
       batch.update(FirebaseFirestore.instance.collection('parentRequests').doc(requestId), {
         'status': 'approved',
-        'studentId': studentDoc.id,
+        'studentId': studentDocId,
         'reviewedAt': FieldValue.serverTimestamp(),
       });
       await batch.commit();
@@ -2484,8 +2484,21 @@ class _SchoolNoticeModuleState extends State<SchoolNoticeModule> {
 }
 
 class SchoolPlannerModule extends StatefulWidget {
-  final String title; final String storageKey; final List<Map<String, dynamic>> records; final ValueChanged<List<Map<String, dynamic>>> onSave; final bool dateMode;
-  const SchoolPlannerModule({super.key, required this.title, required this.storageKey, required this.records, required this.onSave, this.dateMode = false});
+  final String title;
+  final String storageKey;
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  final bool dateMode;
+  final List<Map<String, dynamic>> chapterOptions;
+  const SchoolPlannerModule({
+    super.key,
+    required this.title,
+    required this.storageKey,
+    required this.records,
+    required this.onSave,
+    this.dateMode = false,
+    this.chapterOptions = const [],
+  });
   @override
   State<SchoolPlannerModule> createState() => _SchoolPlannerModuleState();
 }
