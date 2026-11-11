@@ -2081,111 +2081,142 @@ class _SchoolNoticeModuleState extends State<SchoolNoticeModule> {
 }
 
 class SchoolPlannerModule extends StatefulWidget {
-  final String title; final String storageKey; final List<Map<String, dynamic>> records; final ValueChanged<List<Map<String, dynamic>>> onSave; final bool dateMode;
+  final String title;
+  final String storageKey;
+  final List<Map<String, dynamic>> records;
+  final ValueChanged<List<Map<String, dynamic>>> onSave;
+  final bool dateMode;
   const SchoolPlannerModule({super.key, required this.title, required this.storageKey, required this.records, required this.onSave, this.dateMode = false});
   @override
   State<SchoolPlannerModule> createState() => _SchoolPlannerModuleState();
 }
+
 class _SchoolPlannerModuleState extends State<SchoolPlannerModule> {
   late List<Map<String, dynamic>> items;
   @override
   void initState() { super.initState(); items = List<Map<String, dynamic>>.from(widget.records); }
+
   Future<void> add() async {
-    final cls = TextEditingController();
-    final subject = TextEditingController();
+    String cls = schoolClasses.first;
+    String subject = schoolSubjects(cls).first;
     final detail = TextEditingController();
+    final chapter = TextEditingController();
     DateTime date = DateTime.now();
+    TimeOfDay time = const TimeOfDay(hour: 9, minute: 0);
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, refresh) {
-            return AlertDialog(
-              title: Text('Add ${widget.title}'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: cls,
-                      decoration: const InputDecoration(labelText: 'Class'),
-                    ),
-                    TextField(
-                      controller: subject,
-                      decoration: InputDecoration(
-                        labelText: widget.dateMode
-                            ? 'Subject / Paper'
-                            : 'Subject / Chapter',
-                      ),
-                    ),
-                    if (widget.dateMode)
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: ctx,
-                            initialDate: date,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2100),
-                          );
-                          if (d != null) {
-                            refresh(() => date = d);
-                          }
-                        },
-                        icon: const Icon(Icons.calendar_month),
-                        label: Text('${date.day}/${date.month}/${date.year}'),
-                      ),
-                    TextField(
-                      controller: detail,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: widget.dateMode
-                            ? 'Time / Instructions'
-                            : 'Syllabus details',
-                      ),
-                    ),
-                  ],
-                ),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, refresh) => AlertDialog(
+        title: Text('Add ${widget.title}'),
+        content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: cls,
+              decoration: const InputDecoration(labelText: 'Select Class'),
+              items: schoolClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) => refresh(() { cls = v ?? schoolClasses.first; subject = schoolSubjects(cls).first; }),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: subject,
+              decoration: const InputDecoration(labelText: 'Select Subject'),
+              items: schoolSubjects(cls).map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              onChanged: (v) => refresh(() => subject = v ?? schoolSubjects(cls).first),
+            ),
+            const SizedBox(height: 12),
+            if (widget.dateMode) ...[
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime(2020), lastDate: DateTime(2100));
+                  if (d != null) refresh(() => date = d);
+                },
+                icon: const Icon(Icons.calendar_month),
+                label: Text('Exam Date: ${date.day}/${date.month}/${date.year}'),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final t = await showTimePicker(context: ctx, initialTime: time);
+                  if (t != null) refresh(() => time = t);
+                },
+                icon: const Icon(Icons.access_time),
+                label: Text('Exam Time: ${time.format(ctx)}'),
+              ),
+            ] else ...[
+              TextField(controller: chapter, decoration: const InputDecoration(labelText: 'Chapter / Unit')),
+            ],
+            TextField(controller: detail, maxLines: 3, decoration: InputDecoration(labelText: widget.dateMode ? 'Paper details / Instructions' : 'Syllabus details')),
+          ],
+        ))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      )),
     );
 
-    if (ok == true &&
-        cls.text.trim().isNotEmpty &&
-        subject.text.trim().isNotEmpty) {
-      setState(() {
-        items.add({
-          'class': cls.text.trim(),
-          'subject': subject.text.trim(),
-          'detail': detail.text.trim(),
-          'date': widget.dateMode
-              ? date.toIso8601String().substring(0, 10)
-              : '',
-        });
-      });
+    if (ok == true) {
+      final item = <String, dynamic>{
+        'class': cls,
+        'subject': subject,
+        'detail': detail.text.trim(),
+        'chapter': chapter.text.trim(),
+        'date': widget.dateMode ? date.toIso8601String().substring(0, 10) : '',
+        'time': widget.dateMode ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}' : '',
+      };
+      setState(() => items.add(item));
       widget.onSave(items);
     }
-
-    cls.dispose();
-    subject.dispose();
     detail.dispose();
+    chapter.dispose();
+  }
+
+  Future<void> exportPdf() async {
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No ${widget.title.toLowerCase()} records to export.')));
+      return;
+    }
+    final doc = pw.Document();
+    final rows = items.map((e) => [
+      '${e['class'] ?? ''}', '${e['subject'] ?? ''}',
+      widget.dateMode ? '${e['date'] ?? ''}' : '${e['chapter'] ?? ''}',
+      widget.dateMode ? '${e['time'] ?? ''}' : '${e['detail'] ?? ''}',
+      if (widget.dateMode) '${e['detail'] ?? ''}',
+    ]).toList();
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      build: (_) => [
+        pw.Center(child: pw.Text(widget.title.toUpperCase(), style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold))),
+        pw.SizedBox(height: 18),
+        pw.Table.fromTextArray(
+          headers: widget.dateMode ? ['Class', 'Subject', 'Date', 'Time', 'Details'] : ['Class', 'Subject', 'Chapter / Unit', 'Syllabus Details'],
+          data: rows,
+        ),
+      ],
+    ));
+    final bytes = await doc.save();
+    await Printing.sharePdf(bytes: bytes, filename: '${widget.dateMode ? 'date_sheet' : 'syllabus'}.pdf');
   }
 
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [FilledButton.icon(onPressed: add, icon: const Icon(Icons.add), label: Text('Add ${widget.title}')), const SizedBox(height: 10), if (items.isEmpty) Card(child: Padding(padding: const EdgeInsets.all(20), child: Text('No ${widget.title.toLowerCase()} entries yet.'))), ...items.asMap().entries.map((e) => Card(child: ListTile(leading: Icon(widget.dateMode ? Icons.event : Icons.menu_book, color: blue), title: Text('${e.value['subject'] ?? ''} — Class ${e.value['class'] ?? ''}'), subtitle: Text('${e.value['date'] ?? ''}  ${e.value['detail'] ?? ''}'), trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { setState(() => items.removeAt(e.key)); widget.onSave(items); }))))]);
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(14), children: [
+    Row(children: [
+      Expanded(child: FilledButton.icon(onPressed: add, icon: const Icon(Icons.add), label: Text('Add ${widget.title}'))),
+      const SizedBox(width: 8),
+      IconButton.filledTonal(onPressed: exportPdf, icon: const Icon(Icons.picture_as_pdf), tooltip: 'Export PDF'),
+    ]),
+    const SizedBox(height: 10),
+    if (items.isEmpty) Card(child: Padding(padding: const EdgeInsets.all(20), child: Text('No ${widget.title.toLowerCase()} entries yet.'))),
+    ...items.asMap().entries.map((e) => Card(child: ListTile(
+      leading: Icon(widget.dateMode ? Icons.event : Icons.menu_book, color: blue),
+      title: Text('${e.value['subject'] ?? ''} — Class ${e.value['class'] ?? ''}'),
+      subtitle: Text(widget.dateMode
+        ? '${e.value['date'] ?? ''}  ${e.value['time'] ?? ''}\n${e.value['detail'] ?? ''}'
+        : '${e.value['chapter'] ?? ''}\n${e.value['detail'] ?? ''}'),
+      isThreeLine: true,
+      trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () { setState(() => items.removeAt(e.key)); widget.onSave(items); }),
+    ))),
+  ]);
 }
 
 class StudentsModule extends StatelessWidget {
@@ -2664,7 +2695,7 @@ class _FeesModuleState extends State<FeesModule> {
         ]),
       ),
     ));
-    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
   }
 
   @override
@@ -3371,7 +3402,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         ]))));
       }
     }
-    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
   }
 
   @override
@@ -3459,7 +3490,7 @@ class StudentIDCard extends StatelessWidget {
         pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}'),
       ]),
     ))));
-    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
   }
 
   @override
@@ -3494,7 +3525,7 @@ class ReportsModule extends StatelessWidget {
       pw.SizedBox(height: 15),
       pw.Table.fromTextArray(headers: ['Student', 'Class', 'Roll'], data: students.map((s) => ['${s['name']}', '${s['class']}', '${s['roll']}']).toList()),
     ]));
-    await Printing.layoutPdf(onLayout: (_) async => doc.save());
+    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
   }
 
   @override
