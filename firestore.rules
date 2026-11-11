@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isPrincipal() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/schoolPrincipals/$(request.auth.uid));
+    }
+
+    match /parentRequests/{uid} {
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.uid == uid &&
+        request.resource.data.status == 'pending';
+      allow read: if (request.auth != null && request.auth.uid == uid) || isPrincipal();
+      allow update, delete: if isPrincipal();
+    }
+
+    match /parentAccess/{uid} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || isPrincipal());
+      allow create, update, delete: if isPrincipal();
+    }
+
+    match /students/{studentId} {
+      allow read: if isPrincipal() ||
+        (request.auth != null && resource.data.parentUid == request.auth.uid);
+      allow create, update, delete: if isPrincipal();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
