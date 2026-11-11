@@ -3,26 +3,30 @@ import 'dart:math';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: 'AIzaSyBO_RGAaUT_pnzIbvlp1JgZmCEiOiUYfDs',
+      appId: '1:17622707848:android:e408949e4e9b553089f93d',
+      messagingSenderId: '17622707848',
+      projectId: 'school-managment-system-6ef14',
+      storageBucket: 'school-managment-system-6ef14.firebasestorage.app',
+    ),
+  );
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
   };
-  try {
-    await Firebase.initializeApp();
-  } catch (e, st) {
-    debugPrint('Firebase initialization failed: $e\\n$st');
-  }
   runApp(const SchoolManagementApp());
 }
 
@@ -501,6 +505,14 @@ class PortalHomePage extends StatelessWidget {
                     const SizedBox(height: 28),
                     portalButton(
                       context: context,
+                      title: 'Register New School',
+                      subtitle: 'Create a school account and submit for approval',
+                      icon: Icons.add_business,
+                      color: Colors.green,
+                      onPressed: () => open(context, const SchoolRegistrationPage()),
+                    ),
+                    portalButton(
+                      context: context,
                       title: 'Principal / School Login',
                       subtitle: 'School dashboard and daily management',
                       icon: Icons.school,
@@ -545,6 +557,106 @@ class PortalHomePage extends StatelessWidget {
       ),
     );
   }
+}
+
+
+// Multi-school onboarding: every school registers its own principal account.
+class SchoolRegistrationPage extends StatefulWidget {
+  const SchoolRegistrationPage({super.key});
+  @override
+  State<SchoolRegistrationPage> createState() => _SchoolRegistrationPageState();
+}
+
+class _SchoolRegistrationPageState extends State<SchoolRegistrationPage> {
+  final formKey = GlobalKey<FormState>();
+  final school = TextEditingController();
+  final principal = TextEditingController();
+  final email = TextEditingController();
+  final phone = TextEditingController();
+  final address = TextEditingController();
+  final password = TextEditingController();
+  bool busy = false;
+  bool obscure = true;
+  String message = '';
+
+  @override
+  void dispose() {
+    school.dispose(); principal.dispose(); email.dispose(); phone.dispose();
+    address.dispose(); password.dispose(); super.dispose();
+  }
+
+  Future<void> submit() async {
+    if (!formKey.currentState!.validate() || busy) return;
+    setState(() { busy = true; message = ''; });
+    UserCredential? credential;
+    try {
+      credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email.text.trim(), password: password.text,
+      );
+      final ref = FirebaseFirestore.instance.collection('schools').doc();
+      await ref.set({
+        'schoolId': ref.id,
+        'schoolName': school.text.trim(),
+        'principalName': principal.text.trim(),
+        'email': email.text.trim().toLowerCase(),
+        'phone': phone.text.trim(),
+        'address': address.text.trim(),
+        'ownerUid': credential.user!.uid,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'schemaVersion': 1,
+      });
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      setState(() { message = 'Registration submitted. Your School ID is ${ref.id}. Wait for approval before Principal Login.'; });
+    } on FirebaseAuthException catch (e) {
+      if (credential?.user != null) { try { await credential!.user!.delete(); } catch (_) {} }
+      if (!mounted) return;
+      setState(() { message = e.message ?? e.code; });
+    } catch (e) {
+      if (credential?.user != null) { try { await credential!.user!.delete(); } catch (_) {} }
+      if (!mounted) return;
+      setState(() { message = 'Could not submit registration: $e'; });
+    } finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Widget field(TextEditingController c, String label, {TextInputType type = TextInputType.text, bool secret = false}) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextFormField(controller: c, keyboardType: type, obscureText: secret,
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Register New School')),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520),
+      child: Form(key: formKey, child: ListView(padding: const EdgeInsets.all(20), children: [
+        const Icon(Icons.school, size: 58, color: navy),
+        const Text('Create Your School Account', textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: navy)),
+        const SizedBox(height: 18),
+        field(school, 'School Name'), field(principal, 'Principal Name'),
+        field(email, 'Principal Email', type: TextInputType.emailAddress),
+        field(phone, 'Mobile Number', type: TextInputType.phone),
+        field(address, 'School Address'),
+        TextFormField(controller: password, obscureText: obscure,
+          decoration: InputDecoration(labelText: 'Create Password (minimum 8 characters)',
+            border: const OutlineInputBorder(), suffixIcon: IconButton(
+              onPressed: () => setState(() => obscure = !obscure),
+              icon: Icon(obscure ? Icons.visibility : Icons.visibility_off))),
+          validator: (v) => (v == null || v.length < 8) ? 'Use at least 8 characters' : null),
+        const SizedBox(height: 16),
+        if (message.isNotEmpty) Container(padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: lightBlue, borderRadius: BorderRadius.circular(10)), child: Text(message)),
+        const SizedBox(height: 12),
+        FilledButton.icon(onPressed: busy ? null : submit,
+          icon: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send),
+          label: const Text('Submit School Registration')),
+        const SizedBox(height: 10),
+        const Text('Your account remains pending until the System Owner approves it.',
+          textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
+      ])))));
 }
 
 class SetupPage extends StatefulWidget {
@@ -698,17 +810,44 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> login() async {
     if (loading) return;
     setState(() { loading = true; error = ''; });
-    final prefs = await SharedPreferences.getInstance();
-    final savedUsername = prefs.getString('academy_customer_username') ?? '';
-    final savedPassword = prefs.getString('academy_customer_password') ?? '';
-    if (username.text.trim() != savedUsername || password.text != savedPassword) {
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: username.text.trim(),
+        password: password.text,
+      );
+      final uid = credential.user!.uid;
+      final matches = await FirebaseFirestore.instance
+          .collection('schools')
+          .where('ownerUid', isEqualTo: uid)
+          .limit(1)
+          .get();
+      if (matches.docs.isEmpty) {
+        await FirebaseAuth.instance.signOut();
+        throw Exception('School registration not found. Please contact support.');
+      }
+      final schoolDoc = matches.docs.first;
+      final data = schoolDoc.data();
+      if ((data['status'] ?? 'pending') != 'approved') {
+        await FirebaseAuth.instance.signOut();
+        throw Exception('Your school registration is pending System Owner approval.');
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('academy_school_id', schoolDoc.id);
+      await prefs.setString('academy_name', data['schoolName'] ?? 'School Management System');
+      await prefs.setString('academy_customer_username', username.text.trim());
+      await prefs.setBool('academy_remember_me', rememberMe);
       if (!mounted) return;
-      setState(() { loading = false; error = 'غلط یوزرنیم یا پاس ورڈ۔ دوبارہ کوشش کریں۔'; });
-      return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() { error = e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential'
+          ? 'Email or password is incorrect.' : (e.message ?? e.code); });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { error = e.toString().replaceFirst('Exception: ', ''); });
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-    await prefs.setBool('academy_remember_me', rememberMe);
-    if (!mounted) return;
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
   }
 
   @override
@@ -753,7 +892,7 @@ class _LoginPageState extends State<LoginPage> {
                           style: TextStyle(color: blue, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
                         const SizedBox(height: 25),
                         TextField(controller: username, textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person_outline), border: OutlineInputBorder())),
+                          decoration: const InputDecoration(labelText: 'Principal Email', prefixIcon: Icon(Icons.email_outlined), border: OutlineInputBorder())),
                         const SizedBox(height: 14),
                         TextField(controller: password, obscureText: obscurePassword,
                           onSubmitted: (_) => login(),
@@ -778,7 +917,7 @@ class _LoginPageState extends State<LoginPage> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.login),
                             label: const Text('LOGIN'))),
                         const SizedBox(height: 14),
-                        const Text('Authorized School Account', style: TextStyle(color: Colors.black54, fontSize: 12)),
+                        const Text('Approved School Account', style: TextStyle(color: Colors.black54, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -1203,9 +1342,7 @@ List<String> schoolSubjects(String c) {
       'Urdu',
       'Mathematics',
       'General Knowledge',
-      'Islamiat',
-      'Nazra Quran',
-      'Naat'
+      'Islamiat'
     ];
   }
 
@@ -1221,9 +1358,7 @@ List<String> schoolSubjects(String c) {
       'Science',
       'Islamiat',
       'Computer',
-      'Social Studies',
-      'Nazra Quran',
-      'Naat'
+      'Social Studies'
     ];
   }
 
@@ -1513,7 +1648,6 @@ class _HomePageState extends State<HomePage> {
                   FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLoginPage())), icon: const Icon(Icons.admin_panel_settings), label: const Text('Admin Login')),
                   FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RolePortalPage(role: 'Staff'))), icon: const Icon(Icons.badge), label: const Text('Staff Login')),
                   FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: gold, foregroundColor: Colors.black), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RolePortalPage(role: 'Parent'))), icon: const Icon(Icons.family_restroom), label: const Text('Parent Login')),
-                  FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ParentRequestsAdminPage(students: students))), icon: const Icon(Icons.mark_email_unread), label: const Text('Parent Registration Requests')),
                 ]),
                 const SizedBox(height: 6),
                 const Text('Separate staff and parent accounts need to be created by the school administrator.', style: TextStyle(fontSize: 11, color: Colors.black54)),
@@ -1730,7 +1864,7 @@ class _HomePageState extends State<HomePage> {
 
       OrganizationChartPage(school: school),
       SchoolNoticeModule(records: notices, onSave: (v) async { notices = v; await saveAll(); }),
-      SchoolPlannerModule(title: 'Date Sheet', storageKey: 'academy_date_sheet', records: dateSheetItems, onSave: (v) async { dateSheetItems = v; await saveAll(); }, dateMode: true, chapterOptions: syllabusItems),
+      SchoolPlannerModule(title: 'Date Sheet', storageKey: 'academy_date_sheet', records: dateSheetItems, onSave: (v) async { dateSheetItems = v; await saveAll(); }, dateMode: true),
       SchoolPlannerModule(title: 'Syllabus', storageKey: 'academy_syllabus', records: syllabusItems, onSave: (v) async { syllabusItems = v; await saveAll(); }),
     ];
 
@@ -1870,596 +2004,21 @@ class _HomePageState extends State<HomePage> {
  // STUDENTS, FEES, ATTENDANCE, EXAMS
 
 
-
-class RolePortalPage extends StatefulWidget {
+class RolePortalPage extends StatelessWidget {
   final String role;
   const RolePortalPage({super.key, required this.role});
-
-  @override
-  State<RolePortalPage> createState() => _RolePortalPageState();
-}
-
-class _RolePortalPageState extends State<RolePortalPage> {
-  final email = TextEditingController();
-  final password = TextEditingController();
-  bool loading = false;
-  String message = '';
-
-  @override
-  void dispose() {
-    email.dispose();
-    password.dispose();
-    super.dispose();
-  }
-
-  Future<void> loginParent() async {
-    setState(() { loading = true; message = ''; });
-    try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text,
-      );
-      final uid = credential.user!.uid;
-      final access = await FirebaseFirestore.instance
-          .collection('parentAccess').doc(uid).get();
-      if (!mounted) return;
-      if (!access.exists || access.data()?['status'] != 'approved') {
-        setState(() {
-          loading = false;
-          message = 'Your request is pending Principal approval. Please contact the school.';
-        });
-        await FirebaseAuth.instance.signOut();
-        return;
-      }
-      Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_) => ParentApprovedPage(parentUid: uid),
-      ));
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        message = e.code == 'user-not-found' || e.code == 'wrong-password'
-            ? 'Email or password is incorrect.'
-            : (e.message ?? e.code);
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { loading = false; message = 'Login failed: $e'; });
-    }
-  }
-
-  Future<void> openParentRegistration() async {
-    await Navigator.push(context, MaterialPageRoute(
-      builder: (_) => const ParentRequestPage(),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (widget.role != 'Parent') {
-      return Scaffold(
-        appBar: AppBar(title: Text('${widget.role} Login')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Staff accounts will be enabled by the school administrator.'),
-          ),
-        ),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Parent Login')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.family_restroom, size: 58, color: navy),
-                    const SizedBox(height: 10),
-                    const Text('Parent Portal', style: TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: email,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Parent Email',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: password,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      onSubmitted: (_) => loginParent(),
-                    ),
-                    if (message.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(message, style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center),
-                    ],
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: loading ? null : loginParent,
-                        child: loading
-                            ? const CircularProgressIndicator()
-                            : const Text('Login'),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: loading ? null : openParentRegistration,
-                      child: const Text('New Parent? Request Access'),
-                    ),
-                    const Text(
-                      'Use the email and password created during Parent Registration.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ParentRequestPage extends StatefulWidget {
-  const ParentRequestPage({super.key});
-
-  @override
-  State<ParentRequestPage> createState() => _ParentRequestPageState();
-}
-
-class _ParentRequestPageState extends State<ParentRequestPage> {
-  final parentName = TextEditingController();
-  final phone = TextEditingController();
-  final studentName = TextEditingController();
-  final admissionNo = TextEditingController();
-  final email = TextEditingController();
-  final password = TextEditingController();
-  bool loading = false;
-  String message = '';
-
-  @override
-  void dispose() {
-    parentName.dispose();
-    phone.dispose();
-    studentName.dispose();
-    admissionNo.dispose();
-    email.dispose();
-    password.dispose();
-    super.dispose();
-  }
-
-  Future<void> submitRequest() async {
-    if ([parentName, phone, studentName, admissionNo, email, password]
-        .any((c) => c.text.trim().isEmpty)) {
-      setState(() => message = 'Please complete all fields.');
-      return;
-    }
-    if (password.text.length < 6) {
-      setState(() => message = 'Password must be at least 6 characters.');
-      return;
-    }
-    setState(() { loading = true; message = ''; });
-    UserCredential? credential;
-    try {
-      credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text,
-      );
-      await FirebaseFirestore.instance
-          .collection('parentRequests')
-          .doc(credential.user!.uid)
-          .set({
-        'uid': credential.user!.uid,
-        'parentName': parentName.text.trim(),
-        'phone': phone.text.trim(),
-        'studentName': studentName.text.trim(),
-        'admissionNo': admissionNo.text.trim(),
-        'email': email.text.trim(),
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (!mounted) return;
-      await FirebaseAuth.instance.signOut();
-      setState(() {
-        loading = false;
-        message = 'Request sent successfully. Wait for Principal approval.';
-      });
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        message = e.code == 'email-already-in-use'
-            ? 'This email is already registered. Please Login.'
-            : (e.message ?? e.code);
-      });
-    } catch (e) {
-      if (credential?.user != null) {
-        try {
-          await credential!.user!.delete();
-        } catch (_) {}
-      }
-      if (!mounted) return;
-      setState(() { loading = false; message = 'Request could not be sent: $e'; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Parent Access Request')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Create your Parent account and send an access request to the school Principal.',
-            style: TextStyle(fontSize: 15),
-          ),
-          const SizedBox(height: 14),
-          TextField(controller: parentName, decoration: const InputDecoration(labelText: 'Parent Name')),
-          const SizedBox(height: 10),
-          TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number')),
-          const SizedBox(height: 10),
-          TextField(controller: studentName, decoration: const InputDecoration(labelText: 'Student Name')),
-          const SizedBox(height: 10),
-          TextField(controller: admissionNo, decoration: const InputDecoration(labelText: 'Student Admission Number')),
-          const SizedBox(height: 10),
-          TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Parent Email')),
-          const SizedBox(height: 10),
-          TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Create Password (minimum 6 characters)')),
-          if (message.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(message, style: TextStyle(
-              color: message.startsWith('Request sent') ? Colors.green : Colors.red)),
-          ],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: loading ? null : submitRequest,
-            child: loading
-                ? const CircularProgressIndicator()
-                : const Text('Send Request to Principal'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-// ============== PRINCIPAL: PARENT REGISTRATION REQUESTS ==============
-
-class ParentRequestsAdminPage extends StatefulWidget {
-  final List<Map<String, dynamic>> students;
-  const ParentRequestsAdminPage({super.key, required this.students});
-
-  @override
-  State<ParentRequestsAdminPage> createState() => _ParentRequestsAdminPageState();
-}
-
-class _ParentRequestsAdminPageState extends State<ParentRequestsAdminPage> {
-  final email = TextEditingController();
-  final password = TextEditingController();
-  bool loading = false;
-  bool authorized = false;
-  String message = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _checkPrincipal();
-  }
-
-  Future<void> _checkPrincipal() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('schoolPrincipals').doc(user.uid).get();
-      if (!mounted) return;
-      setState(() {
-        authorized = doc.exists && doc.data()?['role'] == 'principal';
-        message = authorized
-            ? ''
-            : 'This Firebase account is not registered as a Principal. Ask the system administrator to authorize its UID in Firestore.';
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => message = 'Could not verify Principal access: $e');
-    }
-  }
-
-  Future<void> _principalSignIn() async {
-    if (email.text.trim().isEmpty || password.text.isEmpty) {
-      setState(() => message = 'Enter Principal Firebase email and password.');
-      return;
-    }
-    setState(() { loading = true; message = ''; });
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.text.trim(), password: password.text);
-      await _checkPrincipal();
-      if (!mounted) return;
-      if (!authorized && message.isEmpty) {
-        setState(() => message = 'This account is not authorized as a Principal.');
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => message = e.message ?? e.code);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => message = 'Sign-in failed: $e');
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  Future<void> _approve(Map<String, dynamic> request, String requestId) async {
-    final admission = TextEditingController(text: '${request['admissionNo'] ?? ''}');
-    final studentId = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Approve Parent Request'),
-        content: TextField(
-          controller: admission,
-          decoration: const InputDecoration(
-            labelText: 'Student Admission Number',
-            helperText: 'Must match a student record synced to Firestore.',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, admission.text.trim()), child: const Text('Find & Approve')),
-        ],
-      ),
-    );
-    if (studentId == null || studentId.isEmpty) return;
-    try {
-      final matches = widget.students.where((student) =>
-          '${student['roll'] ?? ''}'.trim().toLowerCase() == studentId.toLowerCase()).toList();
-      if (matches.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Student Admission/Roll Number was not found in this school’s Students list.')));
-        return;
-      }
-      final student = matches.first;
-      final studentDocId = '${student['id']}';
-      final studentRef = FirebaseFirestore.instance.collection('students').doc(studentDocId);
-      final uid = '${request['uid'] ?? requestId}';
-      final batch = FirebaseFirestore.instance.batch();
-      batch.set(studentRef, {
-        'id': studentDocId,
-        'name': student['name'] ?? '',
-        'father': student['father'] ?? '',
-        'class': student['class'] ?? '',
-        'roll': student['roll'] ?? '',
-        'phone': student['phone'] ?? '',
-        'parentUid': uid,
-      }, SetOptions(merge: true));
-      batch.set(FirebaseFirestore.instance.collection('parentAccess').doc(uid), {
-        'uid': uid,
-        'studentId': studentDocId,
-        'studentAdmissionNo': studentId,
-        'parentName': request['parentName'] ?? '',
-        'status': 'approved',
-        'approvedAt': FieldValue.serverTimestamp(),
-        'approvedBy': FirebaseAuth.instance.currentUser?.uid,
-      });
-      batch.update(FirebaseFirestore.instance.collection('parentRequests').doc(requestId), {
-        'status': 'approved',
-        'studentId': studentDocId,
-        'reviewedAt': FieldValue.serverTimestamp(),
-      });
-      await batch.commit();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Parent request approved successfully.')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Approval failed: $e')));
-    } finally {
-      admission.dispose();
-    }
-  }
-
-  Future<void> _reject(String requestId) async {
-    try {
-      await FirebaseFirestore.instance.collection('parentRequests').doc(requestId).update({
-        'status': 'rejected',
-        'reviewedAt': FieldValue.serverTimestamp(),
-        'reviewedBy': FirebaseAuth.instance.currentUser?.uid,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Parent request rejected.')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not reject request: $e')));
-    }
-  }
-
-  @override
-  void dispose() {
-    email.dispose();
-    password.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Parent Registration Requests')),
-      body: !authorized
-          ? Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(22),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.admin_panel_settings, size: 54, color: navy),
-                        const SizedBox(height: 10),
-                        const Text('Principal Firebase Verification',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        const Text('Sign in with the Principal Firebase account authorized for this school. This is separate from the app’s existing local school login.'),
-                        const SizedBox(height: 14),
-                        TextField(controller: email, keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(labelText: 'Principal Firebase Email')),
-                        const SizedBox(height: 10),
-                        TextField(controller: password, obscureText: true,
-                          decoration: const InputDecoration(labelText: 'Firebase Password')),
-                        if (message.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text(message, style: const TextStyle(color: Colors.red)),
-                        ],
-                        const SizedBox(height: 14),
-                        SizedBox(width: double.infinity, child: FilledButton(
-                          onPressed: loading ? null : _principalSignIn,
-                          child: loading ? const CircularProgressIndicator() : const Text('Verify Principal & Open Requests'))),
-                      ]),
-                    ),
-                  ),
-                ),
-              ),
-            )
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('parentRequests')
-                  .where('status', isEqualTo: 'pending').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) return Center(child: Text('Could not load requests: ${snapshot.error}'));
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) return const Center(child: Text('No pending parent requests.'));
-                return ListView.builder(
-                  padding: const EdgeInsets.all(14),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final r = doc.data();
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('${r['parentName'] ?? 'Parent'}',
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
-                          Text('Student: ${r['studentName'] ?? '-'}'),
-                          Text('Admission No: ${r['admissionNo'] ?? '-'}'),
-                          Text('Mobile: ${r['phone'] ?? '-'}'),
-                          Text('Email: ${r['email'] ?? '-'}'),
-                          const SizedBox(height: 12),
-                          Wrap(spacing: 8, children: [
-                            FilledButton.icon(
-                              onPressed: () => _approve(r, doc.id),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Approve')),
-                            OutlinedButton.icon(
-                              onPressed: () => _reject(doc.id),
-                              icon: const Icon(Icons.close),
-                              label: const Text('Reject')),
-                          ]),
-                        ]),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-    );
-  }
-}
-
-class ParentApprovedPage extends StatelessWidget {
-  final String parentUid;
-  const ParentApprovedPage({super.key, required this.parentUid});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Parent Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(context,
-                  MaterialPageRoute(builder: (_) => const PortalHomePage()),
-                  (_) => false);
-              }
-            },
-          ),
-        ],
-      ),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('parentAccess')
-            .doc(parentUid).snapshots(),
-        builder: (context, accessSnapshot) {
-          if (!accessSnapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final access = accessSnapshot.data!.data();
-          if (access == null || access['status'] != 'approved') {
-            return const Center(child: Text('Your access is waiting for Principal approval.'));
-          }
-          final studentId = '${access['studentId'] ?? ''}';
-          if (studentId.isEmpty) {
-            return const Center(child: Text('Your child record has not been linked by the school yet.'));
-          }
-          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('students')
-                .doc(studentId).snapshots(),
-            builder: (context, studentSnapshot) {
-              if (!studentSnapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final student = studentSnapshot.data!.data();
-              if (student == null) {
-                return const Center(child: Text('Student record is not available.'));
-              }
-              return ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  Card(child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.school)),
-                    title: Text('${student['name'] ?? 'Student'}'),
-                    subtitle: Text('Class: ${student['class'] ?? '-'} | Roll: ${student['roll'] ?? '-'}'),
-                  )),
-                  const ListTile(title: Text('Attendance'), subtitle: Text('Attendance information will appear here when published by the school.')),
-                  const ListTile(title: Text('Homework & Syllabus'), subtitle: Text('Homework and syllabus will appear here when published by the school.')),
-                  const ListTile(title: Text('Results & DMC'), subtitle: Text('Published marks and results will appear here.')),
-                  const ListTile(title: Text('Fee Record'), subtitle: Text('Fee information will appear here when synced by the school.')),
-                  const ListTile(title: Text('Date Sheet'), subtitle: Text('Published exam dates will appear here.')),
-                ],
-              );
-            },
-          );
-        },
-      ),
-    );
+    final user = TextEditingController();
+    final pass = TextEditingController();
+    return Scaffold(appBar: AppBar(title: Text('$role Login')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(role == 'Parent' ? Icons.family_restroom : role == 'Staff' ? Icons.badge : Icons.admin_panel_settings, size: 54, color: navy),
+      const SizedBox(height: 12), Text('$role Portal', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 18), TextField(controller: user, decoration: const InputDecoration(labelText: 'Username / Student ID')),
+      const SizedBox(height: 12), TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+      const SizedBox(height: 16), FilledButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Portal accounts are not configured yet. Please ask the school administrator to create secure staff/parent accounts.'))), child: const Text('Login')),
+      const SizedBox(height: 8), const Text('Ask the school administrator for your portal login details.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12)),
+    ]))))));
   }
 }
 
@@ -2484,21 +2043,8 @@ class _SchoolNoticeModuleState extends State<SchoolNoticeModule> {
 }
 
 class SchoolPlannerModule extends StatefulWidget {
-  final String title;
-  final String storageKey;
-  final List<Map<String, dynamic>> records;
-  final ValueChanged<List<Map<String, dynamic>>> onSave;
-  final bool dateMode;
-  final List<Map<String, dynamic>> chapterOptions;
-  const SchoolPlannerModule({
-    super.key,
-    required this.title,
-    required this.storageKey,
-    required this.records,
-    required this.onSave,
-    this.dateMode = false,
-    this.chapterOptions = const [],
-  });
+  final String title; final String storageKey; final List<Map<String, dynamic>> records; final ValueChanged<List<Map<String, dynamic>>> onSave; final bool dateMode;
+  const SchoolPlannerModule({super.key, required this.title, required this.storageKey, required this.records, required this.onSave, this.dateMode = false});
   @override
   State<SchoolPlannerModule> createState() => _SchoolPlannerModuleState();
 }
@@ -2507,122 +2053,85 @@ class _SchoolPlannerModuleState extends State<SchoolPlannerModule> {
   @override
   void initState() { super.initState(); items = List<Map<String, dynamic>>.from(widget.records); }
   Future<void> add() async {
-    String selectedClass = schoolClasses.first;
-    String selectedSubject = schoolSubjects(selectedClass).first;
+    final cls = TextEditingController();
+    final subject = TextEditingController();
     final detail = TextEditingController();
     DateTime date = DateTime.now();
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, refresh) {
-          final subjects = schoolSubjects(selectedClass);
-          if (!subjects.contains(selectedSubject)) {
-            selectedSubject = subjects.first;
-          }
-          final chapterSource = widget.dateMode
-              ? widget.chapterOptions
-              : widget.records;
-          final existingChapters = chapterSource
-              .where((r) => '${r['class']}' == selectedClass &&
-                  '${r['subject']}' == selectedSubject)
-              .map((r) => '${r['detail'] ?? ''}')
-              .where((v) => v.trim().isNotEmpty)
-              .toSet()
-              .toList();
-
-          return AlertDialog(
-            title: Text('Add ${widget.title}'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: selectedClass,
-                    decoration: const InputDecoration(labelText: 'Class'),
-                    items: schoolClasses.map((c) =>
-                      DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        refresh(() {
-                          selectedClass = v;
-                          selectedSubject = schoolSubjects(v).first;
-                          detail.clear();
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selectedSubject,
-                    decoration: InputDecoration(
-                      labelText: widget.dateMode ? 'Paper / Subject' : 'Subject',
-                    ),
-                    items: subjects.map((v) =>
-                      DropdownMenuItem(value: v, child: Text(v))).toList(),
-                    onChanged: (v) {
-                      if (v != null) refresh(() => selectedSubject = v);
-                    },
-                  ),
-                  if (widget.dateMode) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final d = await showDatePicker(
-                          context: ctx,
-                          initialDate: date,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
-                        if (d != null) refresh(() => date = d);
-                      },
-                      icon: const Icon(Icons.calendar_month),
-                      label: Text(
-                        '${date.day.toString().padLeft(2, '0')}/'
-                        '${date.month.toString().padLeft(2, '0')}/${date.year}',
-                      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, refresh) {
+            return AlertDialog(
+              title: Text('Add ${widget.title}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: cls,
+                      decoration: const InputDecoration(labelText: 'Class'),
                     ),
                     TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Paper time / instructions',
+                      controller: subject,
+                      decoration: InputDecoration(
+                        labelText: widget.dateMode
+                            ? 'Subject / Paper'
+                            : 'Subject / Chapter',
                       ),
-                      onChanged: (v) => detail.text = v,
                     ),
-                  ] else ...[
+                    if (widget.dateMode)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final d = await showDatePicker(
+                            context: ctx,
+                            initialDate: date,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (d != null) {
+                            refresh(() => date = d);
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_month),
+                        label: Text('${date.day}/${date.month}/${date.year}'),
+                      ),
                     TextField(
                       controller: detail,
+                      maxLines: 3,
                       decoration: InputDecoration(
-                        labelText: 'Chapter / Lesson',
-                        hintText: 'Enter chapter or lesson name',
-                        helperText: existingChapters.isEmpty
-                            ? 'Type a chapter name; it will be saved for this class and subject.'
-                            : 'Previously used: ${existingChapters.join(', ')}',
+                        labelText: widget.dateMode
+                            ? 'Time / Instructions'
+                            : 'Syllabus details',
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
-    if (ok == true) {
+    if (ok == true &&
+        cls.text.trim().isNotEmpty &&
+        subject.text.trim().isNotEmpty) {
       setState(() {
         items.add({
-          'class': selectedClass,
-          'subject': selectedSubject,
+          'class': cls.text.trim(),
+          'subject': subject.text.trim(),
           'detail': detail.text.trim(),
           'date': widget.dateMode
               ? date.toIso8601String().substring(0, 10)
@@ -2631,6 +2140,9 @@ class _SchoolPlannerModuleState extends State<SchoolPlannerModule> {
       });
       widget.onSave(items);
     }
+
+    cls.dispose();
+    subject.dispose();
     detail.dispose();
   }
 
@@ -3114,10 +2626,7 @@ class _FeesModuleState extends State<FeesModule> {
         ]),
       ),
     ));
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'school_document_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3641,7 +3150,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
 
   // Four professional PDF themes shared by all school documents.
   PdfColor get designColor => [
-    PdfColors.blue900,
+    designColor,
     PdfColors.teal800,
     PdfColors.purple900,
     PdfColors.brown900,
@@ -3824,10 +3333,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         ]))));
       }
     }
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'school_document_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3915,10 +3421,7 @@ class StudentIDCard extends StatelessWidget {
         pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}'),
       ]),
     ))));
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'school_document_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3953,10 +3456,7 @@ class ReportsModule extends StatelessWidget {
       pw.SizedBox(height: 15),
       pw.Table.fromTextArray(headers: ['Student', 'Class', 'Roll'], data: students.map((s) => ['${s['name']}', '${s['class']}', '${s['roll']}']).toList()),
     ]));
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: 'school_document_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
