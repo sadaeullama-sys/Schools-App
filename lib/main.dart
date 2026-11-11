@@ -1076,73 +1076,66 @@ class _AdminRecoveryIssuePageState extends State<AdminRecoveryIssuePage> {
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
-
   @override
   State<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
 class _AdminLoginPageState extends State<AdminLoginPage> {
-  final username = TextEditingController();
+  final email = TextEditingController(text: 'sadaeullama@gmail.com');
   final password = TextEditingController();
+  bool loading = false;
+  String error = '';
 
-  void login() {
-    if (username.text.trim() == adminUsername &&
-        password.text == adminPassword) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AdminPanelPage(),
-        ),
+  Future<void> login() async {
+    if (loading) return;
+    setState(() { loading = true; error = ''; });
+    try {
+      final enteredEmail = email.text.trim().toLowerCase();
+      if (enteredEmail != 'sadaeullama@gmail.com') {
+        throw Exception('This email is not the authorized System Admin account.');
+      }
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: enteredEmail, password: password.text,
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wrong Admin Login'),
-        ),
-      );
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('admins').doc(credential.user!.uid).get();
+      if (!adminDoc.exists || adminDoc.data()?['role'] != 'system_admin') {
+        await FirebaseAuth.instance.signOut();
+        throw Exception('Admin access is not enabled yet. Add this user UID to admins collection in Firebase Firestore.');
+      }
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminPanelPage()));
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => error = e.message ?? e.code);
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
   }
 
   @override
-  void dispose() {
-    username.dispose();
-    password.dispose();
-    super.dispose();
-  }
+  void dispose() { email.dispose(); password.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Admin Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: username,
-              decoration: const InputDecoration(
-                labelText: 'Admin Username',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Admin Password',
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: login,
-              child: const Text('Admin Login'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('System Admin Login')),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460),
+      child: ListView(padding: const EdgeInsets.all(22), shrinkWrap: true, children: [
+        const Icon(Icons.admin_panel_settings, size: 64, color: blue),
+        const SizedBox(height: 18),
+        TextField(controller: email, keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(labelText: 'System Admin Email', prefixIcon: Icon(Icons.email))),
+        const SizedBox(height: 12),
+        TextField(controller: password, obscureText: true, onSubmitted: (_) => login(),
+          decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock))),
+        if (error.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12),
+          child: Text(error, style: const TextStyle(color: Colors.red))),
+        const SizedBox(height: 18),
+        FilledButton(onPressed: loading ? null : login,
+          child: loading ? const CircularProgressIndicator() : const Text('System Admin Login')),
+      ]))),
+  );
 }
 
 // ================= ADMIN LICENSE GENERATOR =================
@@ -1196,6 +1189,20 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     });
   }
 
+  Future<void> _setSchoolStatus(String schoolId, String status) async {
+    try {
+      await FirebaseFirestore.instance.collection('schools').doc(schoolId).update({
+        'status': status,
+        'reviewedAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('School ${status == 'approved' ? 'approved' : 'rejected'} successfully.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not update request: $e')));
+    }
+  }
+
   @override
   void dispose() {
     school.dispose();
@@ -1207,10 +1214,41 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin License Generator')),
+      appBar: AppBar(title: const Text('System Admin Panel'), actions: [IconButton(tooltip: 'Logout', icon: const Icon(Icons.logout), onPressed: () async { await FirebaseAuth.instance.signOut(); if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const PortalHomePage()), (route) => false); })]),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          const Text('School Registration Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy)),
+          const SizedBox(height: 10),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('schools').where('status', isEqualTo: 'pending').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return Text('Could not load requests: ${snapshot.error}', style: const TextStyle(color: Colors.red));
+              if (!snapshot.hasData) return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('No pending school registrations.')));
+              return Column(children: docs.map((doc) {
+                final data = doc.data();
+                return Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(
+                  padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(data['schoolName']?.toString() ?? 'School', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                    Text('Principal: ${data['principalName'] ?? '-'}'),
+                    Text('Email: ${data['email'] ?? '-'}'),
+                    Text('Phone: ${data['phone'] ?? '-'}'),
+                    Text('School ID: ${doc.id}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Expanded(child: FilledButton.icon(onPressed: () => _setSchoolStatus(doc.id, 'approved'), icon: const Icon(Icons.check), label: const Text('Approve'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: OutlinedButton.icon(onPressed: () => _setSchoolStatus(doc.id, 'rejected'), icon: const Icon(Icons.close), label: const Text('Reject'))),
+                    ]),
+                  ]),
+                ));
+              }).toList());
+            },
+          ),
+          const Divider(height: 30),
+          const Text('License Generator', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy)),
           const Icon(
             Icons.verified_user,
             size: 60,
