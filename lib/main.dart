@@ -89,7 +89,7 @@ class _StartPageState extends State<StartPage> {
 
       final Widget next = !active
           ? const LicensePage()
-          : (username.isEmpty ? const SetupPage() : const LoginPage());
+          : (username.isEmpty ? const SetupPage() : const PortalHomePage());
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(builder: (_) => next),
@@ -390,6 +390,155 @@ class _LicensePageState extends State<LicensePage> {
 
 // ================= SCHOOL LOGIN SETUP =================
 
+
+// ============== MAIN ROLE SELECTION / WELCOME PAGE ==============
+
+class PortalHomePage extends StatelessWidget {
+  const PortalHomePage({super.key});
+
+  void open(BuildContext context, Widget page) {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  Widget portalButton({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 27,
+                  backgroundColor: color.withOpacity(.12),
+                  child: Icon(icon, color: color, size: 30),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.bold, color: navy)),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: const TextStyle(
+                        fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 17, color: color),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF061D39), Color(0xFF0D4D86), Color(0xFF1681C5)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircleAvatar(
+                      radius: 42,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.school, size: 48, color: navy),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'School Management System',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white, fontSize: 25,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'PLEASE SELECT YOUR LOGIN',
+                      style: TextStyle(
+                        color: Colors.white70, letterSpacing: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    portalButton(
+                      context: context,
+                      title: 'Principal / School Login',
+                      subtitle: 'School dashboard and daily management',
+                      icon: Icons.school,
+                      color: blue,
+                      onPressed: () => open(context, const LoginPage()),
+                    ),
+                    portalButton(
+                      context: context,
+                      title: 'Admin Login',
+                      subtitle: 'System administration and license settings',
+                      icon: Icons.admin_panel_settings,
+                      color: gold,
+                      onPressed: () => open(context, const AdminLoginPage()),
+                    ),
+                    portalButton(
+                      context: context,
+                      title: 'Staff Login',
+                      subtitle: 'Staff portal',
+                      icon: Icons.badge,
+                      color: Colors.teal,
+                      onPressed: () => open(context, const RolePortalPage(role: 'Staff')),
+                    ),
+                    portalButton(
+                      context: context,
+                      title: 'Parent Login',
+                      subtitle: 'View your child’s school information',
+                      icon: Icons.family_restroom,
+                      color: Colors.orange,
+                      onPressed: () => open(context, const RolePortalPage(role: 'Parent')),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'School Management System',
+                      style: TextStyle(color: Colors.white60, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
 
@@ -430,7 +579,7 @@ class _SetupPageState extends State<SetupPage> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
+      MaterialPageRoute(builder: (_) => const PortalHomePage()),
     );
   }
 
