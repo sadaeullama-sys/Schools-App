@@ -95,7 +95,7 @@ class _StartPageState extends State<StartPage> {
         MaterialPageRoute<void>(builder: (_) => next),
       );
     } catch (e, st) {
-      debugPrint('New Iqra startup error: $e\n$st');
+      debugPrint('School Management startup error: $e\n$st');
       if (!mounted) return;
       setState(() => startupError = e.toString());
     }
@@ -154,6 +154,7 @@ Future<String> getDeviceId() async {
 }
 
 // یہ محفوظ شدہ App Installation ID ہے، حقیقی hardware ID نہیں۔
+
 // ================= LICENSE PAGE =================
 
 class LicensePage extends StatefulWidget {
@@ -217,7 +218,7 @@ class _LicensePageState extends State<LicensePage> {
     );
 
     if (!mounted) return;
-    
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const SetupPage()),
@@ -440,16 +441,123 @@ class _SetupPageState extends State<SetupPage> {
     confirm.dispose();
     super.dispose();
   }
-  
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const SetupPage()),
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create School Account')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                children: [
+                  const Icon(Icons.school, size: 65, color: navy),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'Create Your School Login',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: username,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: password,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirm,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  if (error.isNotEmpty)
+                    Text(error, style: const TextStyle(color: Colors.red)),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: save,
+                      child: const Text('SAVE ACCOUNT'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
+  }
+}
+// ================= SCHOOL USER LOGIN =================
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final username = TextEditingController();
+  final password = TextEditingController();
+  bool obscurePassword = true;
+  bool rememberMe = true;
+  bool loading = false;
+  String error = '';
+  String schoolName = 'School Management System';
+
+  @override
+  void initState() {
+    super.initState();
+    loadLoginDetails();
+  }
+
+  Future<void> loadLoginDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      schoolName = prefs.getString('academy_name') ?? 'School Management System';
+      username.text = prefs.getString('academy_customer_username') ?? '';
+      rememberMe = prefs.getBool('academy_remember_me') ?? true;
+    });
+  }
+
+  Future<void> login() async {
+    if (loading) return;
+    setState(() { loading = true; error = ''; });
+    final prefs = await SharedPreferences.getInstance();
+    final savedUsername = prefs.getString('academy_customer_username') ?? '';
+    final savedPassword = prefs.getString('academy_customer_password') ?? '';
+    if (username.text.trim() != savedUsername || password.text != savedPassword) {
+      if (!mounted) return;
+      setState(() { loading = false; error = 'غلط یوزرنیم یا پاس ورڈ۔ دوبارہ کوشش کریں۔'; });
+      return;
+    }
+    await prefs.setBool('academy_remember_me', rememberMe);
+    if (!mounted) return;
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
   }
 
   @override
   void dispose() {
-    keyController.dispose();
+    username.dispose();
+    password.dispose();
     super.dispose();
   }
 
@@ -457,148 +565,65 @@ class _SetupPageState extends State<SetupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [navy, blue, Color(0xFF397FC0)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFF061D39), Color(0xFF0D4D86), Color(0xFF1681C5)],
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(22),
-              child: Card(
-                elevation: 12,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          logoTaps++;
-
-                          if (logoTaps >= 5) {
-                            logoTaps = 0;
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AdminLoginPage(),
-                              ),
-                            );
-                          }
-                        },
-                        child: const CircleAvatar(
-                          radius: 48,
-                          backgroundColor: lightBlue,
-                          child: Icon(
-                            Icons.school,
-                            size: 55,
-                            color: navy,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      const Text(
-                        'SCHOOL MANAGEMENT SYSTEM',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: navy,
-                        ),
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Device ID',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-
-                      const SizedBox(height: 7),
-
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: lightBlue,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: SelectableText(
-                                deviceId,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                Clipboard.setData(
-                                  ClipboardData(text: deviceId),
-                                );
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Device ID کاپی ہوگئی'),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.copy),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      TextField(
-                        controller: keyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Enter License Key',
-                          prefixIcon: Icon(Icons.vpn_key),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: FilledButton(
-                          onPressed: activate,
-                          child: const Text('ACTIVATE LICENSE'),
-                        ),
-                      ),
-
-                      if (error.isNotEmpty) ...[
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Card(
+                  elevation: 14,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(25),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircleAvatar(radius: 48, backgroundColor: lightBlue,
+                          child: Icon(Icons.school, size: 55, color: navy)),
+                        const SizedBox(height: 16),
+                        Text(schoolName, textAlign: TextAlign.center,
+                          style: const TextStyle(color: navy, fontSize: 22, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        const Text('SCHOOL MANAGEMENT SYSTEM',
+                          style: TextStyle(color: blue, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                        const SizedBox(height: 25),
+                        TextField(controller: username, textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person_outline), border: OutlineInputBorder())),
+                        const SizedBox(height: 14),
+                        TextField(controller: password, obscureText: obscurePassword,
+                          onSubmitted: (_) => login(),
+                          decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                              icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off)))),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Checkbox(value: rememberMe, onChanged: (v) => setState(() => rememberMe = v ?? false)),
+                          const Text('Remember Me'), const Spacer(),
+                          TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPasswordResetPage())), child: const Text('Forgot Password?')),
+                        ]),
+                        if (error.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(error, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                        ],
                         const SizedBox(height: 12),
-                        Text(
-                          error,
-                          style: const TextStyle(color: Colors.red),
-                        ),
+                        SizedBox(width: double.infinity, height: 52,
+                          child: FilledButton.icon(onPressed: loading ? null : login,
+                            icon: loading ? const SizedBox(width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.login),
+                            label: const Text('LOGIN'))),
+                        const SizedBox(height: 14),
+                        const Text('Authorized School Account', style: TextStyle(color: Colors.black54, fontSize: 12)),
                       ],
-
-                      const SizedBox(height: 20),
-
-                      const Text(
-                        'License Support: 03161847676',
-                        style: TextStyle(fontSize: 15),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -610,58 +635,30 @@ class _SetupPageState extends State<SetupPage> {
   }
 }
 
-// ================= SCHOOL LOGIN SETUP =================
-
-class SetupPage extends StatefulWidget {
-  const SetupPage({super.key});
-
+// ============== RECOVERY ID + ONE-TIME ADMIN RESET CODE ==============
+class AdminPasswordResetPage extends StatefulWidget {
+  const AdminPasswordResetPage({super.key});
   @override
-  State<SetupPage> createState() => _SetupPageState();
+  State<AdminPasswordResetPage> createState() => _AdminPasswordResetPageState();
 }
 
-class _SetupPageState extends State<SetupPage> {
-  final username = TextEditingController();
-  final password = TextEditingController();
-  final confirm = TextEditingController();
+class _AdminPasswordResetPageState extends State<AdminPasswordResetPage> {
+  final reference = TextEditingController();
+  final resetCode = TextEditingController();
+  final newPass = TextEditingController();
+  final confirmPass = TextEditingController();
+  String? generatedReference;
+  String message = '';
+  bool done = false;
 
-  String error = '';
-
-  Future<void> save() async {
-    if (username.text.trim().isEmpty ||
-        password.text.isEmpty ||
-        password.text != confirm.text) {
-      setState(() {
-        error = 'تمام معلومات درست درج کریں';
-      });
-      return;
-    }
-
-    final p = await SharedPreferences.getInstance();
-
-    await p.setString(
-      'academy_customer_username',
-      username.text.trim(),
-    );
-
-    await p.setString(
-      'academy_customer_password',
-      password.text,
-    );
-
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-    );
+  String makeDigits(int length) {
+    final r = Random.secure();
+    return List.generate(length, (_) => r.nextInt(10).toString()).join();
   }
 
-  @override
-  void dispose() {
-    username.dispose();
-    password.dispose();
-    
-    final ref = 'IQRA-${makeDigits(6)}';
+  Future<void> createRequest() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ref = 'SMS-${makeDigits(6)}';
     final requests = jsonDecode(prefs.getString('academy_recovery_requests') ?? '{}') as Map<String, dynamic>;
     requests[ref] = {'createdAt': DateTime.now().millisecondsSinceEpoch, 'device': await getDeviceId(), 'used': false};
     await prefs.setString('academy_recovery_requests', jsonEncode(requests));
@@ -707,7 +704,7 @@ class _SetupPageState extends State<SetupPage> {
       if (generatedReference == null) FilledButton.icon(onPressed: createRequest, icon: const Icon(Icons.confirmation_number), label: const Text('Generate Recovery Reference ID')),
       if (generatedReference != null) Card(color: lightBlue, child: Padding(padding: const EdgeInsets.all(14), child: Column(children: [const Text('Your Recovery Reference ID'), SelectableText(generatedReference!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: navy)), const Text('یہ ID ایڈمن کو بتائیں۔')]))),
       const Divider(height: 28),
-      TextField(controller: reference, decoration: const InputDecoration(labelText: 'Recovery Reference ID (IQRA-xxxxxx)')),
+      TextField(controller: reference, decoration: const InputDecoration(labelText: 'Recovery Reference ID (SMS-xxxxxx)')),
       const SizedBox(height: 10),
       TextField(controller: resetCode, decoration: const InputDecoration(labelText: 'One-time Reset Code')),
       const SizedBox(height: 10),
@@ -880,7 +877,208 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
       );
       return;
     }
-    
+
+    final random = Random.secure();
+
+    final code = List.generate(
+      20,
+      (_) => random.nextInt(16).toRadixString(16).toUpperCase(),
+    ).join();
+
+    final key = 'SMS-$code';
+
+    final p = await SharedPreferences.getInstance();
+
+    await p.setString('academy_generated_license', key);
+    await p.setString('academy_license_school', school.text.trim());
+    await p.setString('academy_license_phone', phone.text.trim());
+    await p.setString('academy_license_device', deviceId.text.trim());
+    await p.setString('academy_license_duration', duration);
+
+    setState(() {
+      generatedKey = key;
+    });
+  }
+
+  @override
+  void dispose() {
+    school.dispose();
+    phone.dispose();
+    deviceId.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Admin License Generator')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Icon(
+            Icons.verified_user,
+            size: 60,
+            color: blue,
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: school,
+            decoration: const InputDecoration(
+              labelText: 'School Name',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: phone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Customer Mobile Number',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: deviceId,
+            decoration: const InputDecoration(
+              labelText: 'Customer Device ID',
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: duration,
+            decoration: const InputDecoration(
+              labelText: 'License Duration',
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: '1 Month',
+                child: Text('1 Month'),
+              ),
+              DropdownMenuItem(
+                value: '3 Months',
+                child: Text('3 Months'),
+              ),
+              DropdownMenuItem(
+                value: '1 Year',
+                child: Text('1 Year'),
+              ),
+              DropdownMenuItem(
+                value: 'Lifetime',
+                child: Text('Lifetime'),
+              ),
+            ],
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => duration = v);
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: generate,
+            icon: const Icon(Icons.key),
+            label: const Text('Generate License Key'),
+          ),
+          if (generatedKey.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text('Generated License Key'),
+            SelectableText(
+              generatedKey,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Clipboard.setData(
+                  ClipboardData(text: generatedKey),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Key Copied'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy Key'),
+            ),
+          ],
+          const SizedBox(height: 18),
+          const Text(
+            'Note: This is a local prototype. Secure activation '
+            'on another device and expiry enforcement are not implemented.',
+            style: TextStyle(color: Colors.red),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================= HOME DASHBOARD DATA =================
+
+const schoolClasses = [
+  'Play Group',
+  'Nursery',
+  'Prep',
+  'First',
+  'Second',
+  'Third',
+  'Fourth',
+  'Fifth',
+  'Sixth',
+  'Seventh',
+  'Eighth',
+  'Ninth',
+  'Tenth',
+];
+
+List<String> schoolSubjects(String c) {
+  if ([
+    'First',
+    'Second',
+    'Third',
+    'Fourth',
+    'Fifth'
+  ].contains(c)) {
+    return [
+      'English',
+      'Urdu',
+      'Mathematics',
+      'General Knowledge',
+      'Islamiat'
+    ];
+  }
+
+  if ([
+    'Sixth',
+    'Seventh',
+    'Eighth'
+  ].contains(c)) {
+    return [
+      'English',
+      'Urdu',
+      'Mathematics',
+      'Science',
+      'Islamiat',
+      'Computer',
+      'Social Studies'
+    ];
+  }
+
+  return [
+    'English',
+    'Urdu',
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Computer',
+    'Islamiat',
+    'Pakistan Studies'
+  ];
+}
+
 Future<List<Map<String, dynamic>>> readData(String key) async {
   final p = await SharedPreferences.getInstance();
   final raw = p.getString(key);
@@ -917,7 +1115,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int selected = 0;
-  String school = 'New Iqra Children Academy';
+  String school = 'School Management System';
 
   List<Map<String, dynamic>> students = [];
   List<Map<String, dynamic>> fees = [];
@@ -954,7 +1152,7 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       school = p.getString('academy_name') ??
-          'New Iqra Children Academy';
+          'School Management System';
       students = s;
       fees = f;
       attendance = a;
@@ -1092,19 +1290,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          
-                         'School Management Dashboard',
-                         style: TextStyle(
-                           color: Colors.white70,
-                           fontSize: 12,
-                         ),
-                       ),
-                     ],
-                   ),
-                 ),
-               ],
-             ),
-           ),
 
           const SizedBox(height: 16),
 
@@ -1293,38 +1478,19 @@ class _HomePageState extends State<HomePage> {
 
   Widget _dashboardTile(BuildContext context, String title, IconData icon, Color color, int page) {
     return InkWell(
-      
       borderRadius: BorderRadius.circular(14),
       onTap: () => setState(() => selected = page),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withOpacity(.12),
-                child: Icon(icon, color: color, size: 26),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: Card(child: Padding(padding: const EdgeInsets.all(8), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircleAvatar(backgroundColor: color.withOpacity(.12), child: Icon(icon, color: color, size: 26)),
+        const SizedBox(height: 7), Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+      ]))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
+
       dashboard(),
 
       StudentsModule(
@@ -1401,35 +1567,9 @@ class _HomePageState extends State<HomePage> {
       ),
 
       OrganizationChartPage(school: school),
-
-      SchoolNoticeModule(
-        records: notices,
-        onSave: (v) async {
-          notices = v;
-          await saveAll();
-        },
-      ),
-
-      SchoolPlannerModule(
-        title: 'Date Sheet',
-        storageKey: 'academy_date_sheet',
-        records: dateSheetItems,
-        onSave: (v) async {
-          dateSheetItems = v;
-          await saveAll();
-        },
-        dateMode: true,
-      ),
-
-      SchoolPlannerModule(
-        title: 'Syllabus',
-        storageKey: 'academy_syllabus',
-        records: syllabusItems,
-        onSave: (v) async {
-          syllabusItems = v;
-          await saveAll();
-        },
-      ),
+      SchoolNoticeModule(records: notices, onSave: (v) async { notices = v; await saveAll(); }),
+      SchoolPlannerModule(title: 'Date Sheet', storageKey: 'academy_date_sheet', records: dateSheetItems, onSave: (v) async { dateSheetItems = v; await saveAll(); }, dateMode: true),
+      SchoolPlannerModule(title: 'Syllabus', storageKey: 'academy_syllabus', records: syllabusItems, onSave: (v) async { syllabusItems = v; await saveAll(); }),
     ];
 
     const titles = [
@@ -1469,7 +1609,9 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          selected == 0 ? school : titles[selected],
+          selected == 0
+              ? school
+              : titles[selected],
         ),
       ),
 
@@ -1536,33 +1678,6 @@ class _HomePageState extends State<HomePage> {
                   icon: Icon(Icons.home),
                   label: 'Home',
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.people),
-                  label: 'Students',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.payments),
-                  label: 'Fees',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.fact_check),
-                  label: 'Attendance',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.school),
-                  label: 'Exams',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.picture_as_pdf),
-                  label: 'Reports',
-                ),
-              ],
-            )
-          : null,
-    );
-  }
-}
-    
                 NavigationDestination(
                   icon: Icon(Icons.people),
                   label: 'Students',
@@ -1763,9 +1878,8 @@ class StudentsModule extends StatelessWidget {
                               value: c,
                               child: Text(c),
                             ),
-                            
-                           )
-                           .toList(),
+                          )
+                          .toList(),
                       onChanged: (v) {
                         if (v != null) {
                           setDialogState(() => cls = v);
@@ -1897,7 +2011,7 @@ class StudentsModule extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => StudentIDCard(
-                          school: 'New Iqra Children Academy',
+                          school: 'School Management System',
                           student: s,
                         ),
                       ),
@@ -1964,7 +2078,7 @@ class _FeesModuleState extends State<FeesModule> {
 
   double monthlyFee(Map<String, dynamic> s) =>
       double.tryParse('${s['totalFee'] ?? 0}') ?? 0;
-  
+
   Future<DateTime?> chooseDate(DateTime initial) => showDatePicker(
     context: context,
     initialDate: initial,
@@ -1979,110 +2093,89 @@ class _FeesModuleState extends State<FeesModule> {
     DateTime paymentDate = DateTime.now();
     DateTime dueDate = DateTime(selectedMonth.year, selectedMonth.month, 10);
     String type = 'Monthly Fee';
-
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Fee Payment - ${student['name']}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Class: ${student['class']}  |  Roll: ${student['roll']}'),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: type,
-                  decoration: const InputDecoration(labelText: 'Fee Type'),
-                  items: const [
-                    'Monthly Fee',
-                    'Admission Fee',
-                    'Transport Fee',
-                    'Other'
-                  ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setDialogState(() => type = v ?? type),
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Fee Month'),
-                  subtitle: Text(monthKey(selectedMonth)),
-                  trailing: const Icon(Icons.calendar_month),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: dialogContext,
-                      initialDate: selectedMonth,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2040),
-                      helpText: 'Choose any date in the fee month',
-                    );
-                    if (d != null) setState(() => selectedMonth = DateTime(d.year, d.month));
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Payment Date'),
-                  subtitle: Text(paymentDate.toString().substring(0, 10)),
-                  trailing: const Icon(Icons.event),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: dialogContext,
-                      initialDate: paymentDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2040),
-                    );
-                    if (d != null) setDialogState(() => paymentDate = d);
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Due Date'),
-                  subtitle: Text(dueDate.toString().substring(0, 10)),
-                  trailing: const Icon(Icons.event_available),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: dialogContext,
-                      initialDate: dueDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2040),
-                    );
-                    if (d != null) setDialogState(() => dueDate = d);
-                  },
-                ),
-                TextField(
-                  controller: amount,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Received Amount (Rs)',
-                    helperText: 'Monthly fee: ${money(monthlyFee(student))}',
-                  ),
-                ),
-                TextField(
-                  controller: note,
-                  decoration: const InputDecoration(labelText: 'Note / Remarks'),
-                ),
-              ],
+          content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Class: ${student['class']}  |  Roll: ${student['roll']}'),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              value: type,
+              decoration: const InputDecoration(labelText: 'Fee Type'),
+              items: const ['Monthly Fee', 'Admission Fee', 'Transport Fee', 'Other']
+                  .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+              onChanged: (v) => setDialogState(() => type = v ?? type),
             ),
-          ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Fee Month'),
+              subtitle: Text(monthKey(selectedMonth)),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: selectedMonth,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                  helpText: 'Choose any date in the fee month',
+                );
+                if (d != null) setState(() => selectedMonth = DateTime(d.year, d.month));
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Payment Date'),
+              subtitle: Text(paymentDate.toString().substring(0, 10)),
+              trailing: const Icon(Icons.event),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: paymentDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                );
+                if (d != null) setDialogState(() => paymentDate = d);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Due Date'),
+              subtitle: Text(dueDate.toString().substring(0, 10)),
+              trailing: const Icon(Icons.event_available),
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: dialogContext,
+                  initialDate: dueDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2040),
+                );
+                if (d != null) setDialogState(() => dueDate = d);
+              },
+            ),
+            TextField(
+              controller: amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Received Amount (Rs)',
+                helperText: 'Monthly fee: ${money(monthlyFee(student))}',
+              ),
+            ),
+            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note / Remarks')),
+          ])),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Save Payment'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save Payment')),
           ],
         ),
       ),
     );
 
     final received = double.tryParse(amount.text.trim()) ?? 0;
-
     if (ok == true && received > 0) {
       final m = monthKey(selectedMonth);
-
       widget.onSave([
         ...widget.fees,
         {
@@ -2101,7 +2194,6 @@ class _FeesModuleState extends State<FeesModule> {
         }
       ]);
     }
-
     amount.dispose();
     note.dispose();
   }
@@ -2111,76 +2203,81 @@ class _FeesModuleState extends State<FeesModule> {
     final monthly = monthlyFee(s);
     final paid = paidFor('${s['id']}', m);
     final due = (monthly - paid).clamp(0, double.infinity).toDouble();
-
     final payments = widget.fees.where((f) =>
       '${f['studentId']}' == '${s['id']}' && '${f['month']}' == m).toList();
-
     final doc = pw.Document();
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a5,
-        margin: const pw.EdgeInsets.all(24),
-        build: (_) => pw.Container(
-          padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.blue900, width: 2),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              pw.Center(
-                child: pw.Text(
-                  'NEW IQRA CHILDREN ACADEMY',
-                  style: pw.TextStyle(
-                    fontSize: 17,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
-                  ),
-                ),
-              ),
-              pw.Center(
-                child: pw.Text(
-                  'MONTHLY FEE VOUCHER',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-              pw.Divider(thickness: 2),
-              pw.Text('Voucher Date: ${DateTime.now().toString().substring(0,10)}'),
-              pw.Text('Fee Month: $m'),
-              pw.SizedBox(height: 12),
-              pw.Text('Student: ${s['name']}'),
-              pw.Text('Father: ${s['father']}'),
-              pw.Text('Class: ${s['class']}'),
-              pw.Text('Roll: ${s['roll']}'),
-              pw.SizedBox(height: 12),
-              pw.Text('Monthly Fee: Rs ${monthly.toStringAsFixed(0)}'),
-              pw.Text('Received: Rs ${paid.toStringAsFixed(0)}'),
-              pw.Text('Remaining: Rs ${due.toStringAsFixed(0)}'),
-              pw.SizedBox(height: 12),
-              pw.Text('Payment History'),
-              pw.Table.fromTextArray(
-                headers: ['Date', 'Type', 'Amount'],
-                data: payments.map((f) => [
-                  '${f['date']}',
-                  '${f['feeType']}',
-                  'Rs ${f['amount']}',
-                ]).toList(),
-              ),
+    doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, margin: const pw.EdgeInsets.all(24), build: (_) =>
+      pw.Container(
+        padding: const pw.EdgeInsets.all(16),
+        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Center(child: pw.Text('SCHOOL MANAGEMENT SYSTEM', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+          pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+          pw.Divider(thickness: 2),
+          pw.Text('Voucher Date: ${DateTime.now().toString().substring(0,10)}'),
+          pw.Text('Fee Month: $m'),
+          pw.SizedBox(height: 12),
+          pw.Text('Student: ${s['name']}'),
+          pw.Text('Father: ${s['father'] ?? ''}'),
+          pw.Text('Class: ${s['class']}     Roll: ${s['roll']}'),
+          pw.SizedBox(height: 15),
+          pw.Table.fromTextArray(
+            headers: ['Description', 'Amount (Rs.)'],
+            data: [
+              ['Monthly Fee', monthly.toStringAsFixed(0)],
+              ['Received This Month', paid.toStringAsFixed(0)],
+              ['Remaining Balance', due.toStringAsFixed(0)],
             ],
           ),
-        ),
+          pw.SizedBox(height: 12),
+          pw.Text('Payment entries:'),
+          ...payments.map((p) => pw.Text('${p['date']}  -  Rs ${p['amount']} (${p['feeType'] ?? 'Fee'})')),
+          pw.Spacer(),
+          pw.Text('Cashier Signature: __________________'),
+          pw.SizedBox(height: 10),
+          pw.Text('Parent Signature: __________________'),
+          pw.SizedBox(height: 10),
+          pw.Center(child: pw.Text('Please keep this voucher for your record.', style: const pw.TextStyle(fontSize: 9))),
+        ]),
       ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (_) async => doc.save(),
-    );
+    ));
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
-  
+
+  @override
+  Widget build(BuildContext context) {
+    final m = monthKey(selectedMonth);
+    final expected = visibleStudents.fold<double>(0, (a, s) => a + monthlyFee(s));
+    final received = visibleStudents.fold<double>(0, (a, s) => a + paidFor('${s['id']}', m));
+    final dueTotal = (expected - received).clamp(0, double.infinity).toDouble();
+    return ListView(padding: const EdgeInsets.all(14), children: [
+      const Text('Monthly Fee Management', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: navy)),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        value: selectedClass,
+        decoration: const InputDecoration(labelText: 'Filter by Class'),
+        items: ['All', ...schoolClasses].map((c) => DropdownMenuItem(value: c, child: Text(c == 'All' ? 'All Classes' : c))).toList(),
+        onChanged: (v) => setState(() => selectedClass = v ?? 'All'),
+      ),
+      Card(child: ListTile(
+        leading: const Icon(Icons.calendar_month, color: blue),
+        title: const Text('Selected Fee Month'),
+        subtitle: Text(m),
+        trailing: const Icon(Icons.edit_calendar),
+        onTap: () async {
+          final d = await chooseDate(selectedMonth);
+          if (d != null) setState(() => selectedMonth = DateTime(d.year, d.month));
+        },
+      )),
+      Row(children: [
+        _feeSummary('Expected', expected, Colors.blue),
+        _feeSummary('Received', received, Colors.green),
+        _feeSummary('Due', dueTotal, Colors.red),
+      ]),
+      const SizedBox(height: 10),
+      for (final s in visibleStudents) Builder(builder: (context) {
+        final paid = paidFor('${s['id']}', m);
+        final fee = monthlyFee(s);
         final due = (fee - paid).clamp(0, double.infinity).toDouble();
         return Card(child: Padding(
           padding: const EdgeInsets.all(10),
@@ -2349,9 +2446,7 @@ class AttendanceModule extends StatelessWidget {
     );
   }
 }
-
 // ============== EXAMS MODULE ==============
-
 class ExamsModule extends StatelessWidget {
   final List<Map<String, dynamic>> students;
   final List<Map<String, dynamic>> marks;
@@ -2382,7 +2477,7 @@ class ExamsModule extends StatelessWidget {
     final subject = TextEditingController();
     final total = TextEditingController(text: '100');
     final obtained = TextEditingController();
-    
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -2416,7 +2511,7 @@ class ExamsModule extends StatelessWidget {
                   controller: exam,
                   decoration: const InputDecoration(
                     labelText: 'Exam Name',
-                  ),
+                    ),
                 ),
                 TextField(
                   controller: subject,
@@ -2456,7 +2551,6 @@ class ExamsModule extends StatelessWidget {
         ),
       ),
     );
-
     final maxMarks = double.tryParse(total.text) ?? 0;
     final gotMarks =
         double.tryParse(obtained.text) ?? -1;
@@ -2482,8 +2576,7 @@ class ExamsModule extends StatelessWidget {
           'total': maxMarks,
           'obtained': gotMarks,
           'date':
-              DateTime.now().toString().substring(0, 10),
-        },
+              DateTime.now().toString().substring(0, 10),},
       ]);
     }
 
@@ -2529,354 +2622,127 @@ class ExamsModule extends StatelessWidget {
 class TransportModule extends StatelessWidget {
   final List<Map<String, dynamic>> records;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-
-  const TransportModule({
-    super.key,
-    required this.records,
-    required this.onSave,
-  });
+  const TransportModule({super.key, required this.records, required this.onSave});
 
   Future<void> add(BuildContext context) async {
     final name = TextEditingController();
     final route = TextEditingController();
     final amount = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Add Transport Record'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                labelText: 'Student Name',
-              ),
-            ),
-            TextField(
-              controller: route,
-              decoration: const InputDecoration(
-                labelText: 'Route / Pickup Point',
-              ),
-            ),
-            TextField(
-              controller: amount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount Rs',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
+    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Add Transport Record'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'Student Name')),
+        TextField(controller: route, decoration: const InputDecoration(labelText: 'Route / Pickup Point')),
+        TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount Rs')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save'))],
+    ));
     final value = double.tryParse(amount.text) ?? 0;
-
-    if (ok == true &&
-        name.text.trim().isNotEmpty &&
-        value >= 0) {
-      onSave([
-        ...records,
-        {
-          'student': name.text.trim(),
-          'route': route.text.trim(),
-          'amount': value,
-          'date': DateTime.now().toIso8601String(),
-        },
-      ]);
+    if (ok == true && name.text.trim().isNotEmpty && value >= 0) {
+      onSave([...records, {'student': name.text.trim(), 'route': route.text.trim(), 'amount': value, 'date': DateTime.now().toIso8601String()}]);
     }
-
-    name.dispose();
-    route.dispose();
-    amount.dispose();
+    name.dispose(); route.dispose(); amount.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _SimpleRecordPage(
-        title: 'Transport Records',
-        addLabel: 'Add Transport',
-        records: records,
-        titleOf: (r) => '${r['student']}',
-        subtitleOf: (r) => '${r['route']} • ${r['date']}',
-        amountOf: (r) => r['amount'],
-        onAdd: () => add(context),
-        onSave: onSave,
-      );
+  Widget build(BuildContext context) => _SimpleRecordPage(
+    title: 'Transport Records', addLabel: 'Add Transport', records: records,
+    titleOf: (r) => '${r['student']}', subtitleOf: (r) => '${r['route']} • ${r['date']}',
+    amountOf: (r) => r['amount'], onAdd: () => add(context), onSave: onSave,
+  );
 }
 
 class SalaryModule extends StatelessWidget {
   final List<Map<String, dynamic>> records;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-
-  const SalaryModule({
-    super.key,
-    required this.records,
-    required this.onSave,
-  });
+  const SalaryModule({super.key, required this.records, required this.onSave});
 
   Future<void> add(BuildContext context) async {
     final name = TextEditingController();
     final role = TextEditingController();
     final amount = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Add Staff Salary'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(
-                labelText: 'Employee Name',
-              ),
-            ),
-            TextField(
-              controller: role,
-              decoration: const InputDecoration(
-                labelText: 'Designation',
-              ),
-            ),
-            TextField(
-              controller: amount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Salary Rs',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
+    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Add Staff Salary'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'Employee Name')),
+        TextField(controller: role, decoration: const InputDecoration(labelText: 'Designation')),
+        TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Salary Rs')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save'))],
+    ));
     final value = double.tryParse(amount.text) ?? 0;
-
-    if (ok == true &&
-        name.text.trim().isNotEmpty &&
-        value >= 0) {
-      onSave([
-        ...records,
-        {
-          'name': name.text.trim(),
-          'role': role.text.trim(),
-          'amount': value,
-          'date': DateTime.now().toIso8601String(),
-        },
-      ]);
+    if (ok == true && name.text.trim().isNotEmpty && value >= 0) {
+      onSave([...records, {'name': name.text.trim(), 'role': role.text.trim(), 'amount': value, 'date': DateTime.now().toIso8601String()}]);
     }
-
-    name.dispose();
-    role.dispose();
-    amount.dispose();
+    name.dispose(); role.dispose(); amount.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) => _SimpleRecordPage(
-    title: 'Staff Salary',
-    addLabel: 'Add Salary',
-    records: records,
-    titleOf: (r) => '${r['name']}',
-    subtitleOf: (r) => '${r['role']} • ${r['date']}',
-    amountOf: (r) => r['amount'],
-    onAdd: () => add(context),
-    onSave: onSave,
+    title: 'Staff Salary', addLabel: 'Add Salary', records: records,
+    titleOf: (r) => '${r['name']}', subtitleOf: (r) => '${r['role']} • ${r['date']}',
+    amountOf: (r) => r['amount'], onAdd: () => add(context), onSave: onSave,
   );
 }
 
 class SchoolExpensesModule extends StatelessWidget {
   final List<Map<String, dynamic>> records;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-
-  const SchoolExpensesModule({
-    super.key,
-    required this.records,
-    required this.onSave,
-  });
+  const SchoolExpensesModule({super.key, required this.records, required this.onSave});
 
   Future<void> add(BuildContext context) async {
     final title = TextEditingController();
     final category = TextEditingController();
     final amount = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Add School Expense'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: title,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-              ),
-            ),
-            TextField(
-              controller: category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-              ),
-            ),
-            TextField(
-              controller: amount,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount Rs',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
+    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Add School Expense'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: title, decoration: const InputDecoration(labelText: 'Description')),
+        TextField(controller: category, decoration: const InputDecoration(labelText: 'Category')),
+        TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Amount Rs')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save'))],
+    ));
     final value = double.tryParse(amount.text) ?? 0;
-
-    if (ok == true &&
-        title.text.trim().isNotEmpty &&
-        value >= 0) {
-      onSave([
-        ...records,
-        {
-          'title': title.text.trim(),
-          'category': category.text.trim(),
-          'amount': value,
-          'date': DateTime.now().toIso8601String(),
-        }
-      ]);
+    if (ok == true && title.text.trim().isNotEmpty && value >= 0) {
+      onSave([...records, {'title': title.text.trim(), 'category': category.text.trim(), 'amount': value, 'date': DateTime.now().toIso8601String()}]);
     }
-
-    title.dispose();
-    category.dispose();
-    amount.dispose();
+    title.dispose(); category.dispose(); amount.dispose();
   }
 
   @override
   Widget build(BuildContext context) => _SimpleRecordPage(
-    title: 'School Expenses',
-    addLabel: 'Add Expense',
-    records: records,
-    titleOf: (r) => '${r['title']}',
-    subtitleOf: (r) => '${r['category']} • ${r['date']}',
-    amountOf: (r) => r['amount'],
-    onAdd: () => add(context),
-    onSave: onSave,
+    title: 'School Expenses', addLabel: 'Add Expense', records: records,
+    titleOf: (r) => '${r['title']}', subtitleOf: (r) => '${r['category']} • ${r['date']}',
+    amountOf: (r) => r['amount'], onAdd: () => add(context), onSave: onSave,
   );
 }
 
 class _SimpleRecordPage extends StatelessWidget {
   final String title, addLabel;
   final List<Map<String, dynamic>> records;
-  final String Function(Map<String, dynamic>) titleOf,
-      subtitleOf;
+  final String Function(Map<String, dynamic>) titleOf, subtitleOf;
   final dynamic Function(Map<String, dynamic>) amountOf;
   final VoidCallback onAdd;
   final ValueChanged<List<Map<String, dynamic>>> onSave;
-
-  const _SimpleRecordPage({
-    required this.title,
-    required this.addLabel,
-    required this.records,
-    required this.titleOf,
-    required this.subtitleOf,
-    required this.amountOf,
-    required this.onAdd,
-    required this.onSave,
-  });
+  const _SimpleRecordPage({required this.title, required this.addLabel, required this.records, required this.titleOf, required this.subtitleOf, required this.amountOf, required this.onAdd, required this.onSave});
 
   @override
   Widget build(BuildContext context) {
-    final total = records.fold<double>(
-      0,
-      (a, r) =>
-          a + (double.tryParse('${amountOf(r)}') ?? 0),
-    );
-
-    return ListView(
-      padding: const EdgeInsets.all(14),
-      children: [
-        Card(
-          child: ListTile(
-            title: Text(title),
-            subtitle: Text(
-              'Total: Rs ${total.toStringAsFixed(0)}',
-            ),
-            leading: const Icon(
-              Icons.account_balance_wallet,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        FilledButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add),
-          label: Text(addLabel),
-        ),
-        ...records.asMap().entries.map(
-          (e) => Card(
-            child: ListTile(
-              title: Text(titleOf(e.value)),
-              subtitle: Text(subtitleOf(e.value)),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Rs ${amountOf(e.value)}'),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete,
-                      color: Colors.red,
-                    ),
-                    onPressed: () {
-                      final copy = [...records]
-                        ..removeAt(e.key);
-                      onSave(copy);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (records.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text('No records yet'),
-          ),
-      ],
-    );
+    final total = records.fold<double>(0, (a, r) => a + (double.tryParse('${amountOf(r)}') ?? 0));
+    return ListView(padding: const EdgeInsets.all(14), children: [
+      Card(child: ListTile(title: Text(title), subtitle: Text('Total: Rs ${total.toStringAsFixed(0)}'), leading: const Icon(Icons.account_balance_wallet))),
+      const SizedBox(height: 10),
+      FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: Text(addLabel)),
+      ...records.asMap().entries.map((e) => Card(child: ListTile(
+        title: Text(titleOf(e.value)), subtitle: Text(subtitleOf(e.value)),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [Text('Rs ${amountOf(e.value)}'), IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () { final copy = [...records]..removeAt(e.key); onSave(copy); })]),
+      ))),
+      if (records.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No records yet')),
+    ]);
   }
 }
 
@@ -2886,88 +2752,132 @@ class _SimpleRecordPage extends StatelessWidget {
 class ClassDocumentsModule extends StatefulWidget {
   final String school;
   final List<Map<String, dynamic>> students, fees, marks;
-
-  const ClassDocumentsModule({
-    super.key,
-    required this.school,
-    required this.students,
-    required this.fees,
-    required this.marks,
-  });
+  const ClassDocumentsModule({super.key, required this.school, required this.students, required this.fees, required this.marks});
 
   @override
-  State<ClassDocumentsModule> createState() =>
-      _ClassDocumentsModuleState();
+  State<ClassDocumentsModule> createState() => _ClassDocumentsModuleState();
 }
 
-class _ClassDocumentsModuleState
-    extends State<ClassDocumentsModule> {
+class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
   String selectedClass = 'First';
   String selectedExam = 'All Exams';
+  DateTime feeMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
-  DateTime feeMonth = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  );
+  List<Map<String, dynamic>> get classStudents => widget.students
+      .where((s) => '${s['class']}' == selectedClass).toList();
 
-  List<Map<String, dynamic>> get classStudents =>
-      widget.students
-          .where((s) => '${s['class']}' == selectedClass)
-          .toList();
+  String get monthKey => '${feeMonth.year}-${feeMonth.month.toString().padLeft(2, '0')}';
 
-  String get monthKey =>
-      '${feeMonth.year}-${feeMonth.month.toString().padLeft(2, '0')}';
+  double feeOf(Map<String, dynamic> s) => double.tryParse('${s['totalFee'] ?? 0}') ?? 0;
 
-  double feeOf(Map<String, dynamic> s) =>
-                        color: PdfColors.blue700,
-                      ),
-                    ),
-                                : percent >= 80
-                ? 'A'
-                : percent >= 70
-                    ? 'B'
-                    : percent >= 60
-                        ? 'C'
-                        : percent >= 50
-                            ? 'D'
-                            : 'Needs Improvement';
+  double paidOf(Map<String, dynamic> s) => widget.fees.where((f) =>
+      '${f['studentId']}' == '${s['id']}' && '${f['month']}' == monthKey)
+      .fold<double>(0, (a, f) => a + (double.tryParse('${f['amount']}') ?? 0));
 
-        doc.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(28),
-            build: (_) => pw.Container(
-              padding: const pw.EdgeInsets.all(18),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(
-                  color: PdfColors.blue900,
-                  width: 2,
-                ),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                children: [
-                  pw.Center(
-                    child: pw.Text(
-                      widget.school,
-                      style: pw.TextStyle(
-                        fontSize: 22,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue900,
-                      ),
-                    ),
-                  ),
-                  pw.Center(
-                    child: pw.Text(
-                      'DETAILED MARKS CERTIFICATE',
-                      style: pw.TextStyle(
-                        fontSize: 15,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  pw.Divider(thickness: 2),
-                  
+  Future<void> chooseFeeMonth() async {
+    final d = await showDatePicker(
+      context: context, initialDate: feeMonth,
+      firstDate: DateTime(2020), lastDate: DateTime(2040),
+      helpText: 'Select month for fee vouchers',
+    );
+    if (d != null) setState(() => feeMonth = DateTime(d.year, d.month));
+  }
+
+  Future<void> makeClassPdf(String kind) async {
+    final list = classStudents;
+    if (list.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس کلاس میں کوئی طالب علم موجود نہیں۔')));
+      return;
+    }
+    if (kind == 'DMC' && !widget.marks.any((m) => '${m['class']}' == selectedClass)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس کلاس کے امتحانی نمبر پہلے درج کریں۔')));
+      return;
+    }
+
+    final doc = pw.Document();
+    for (final s in list) {
+      final imagePath = '${s['photoPath'] ?? ''}';
+      pw.MemoryImage? photo;
+      if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
+        photo = pw.MemoryImage(await File(imagePath).readAsBytes());
+      }
+
+      if (kind == 'ID CARD') {
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, build: (_) => pw.Center(child: pw.Container(
+          width: 350, padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.white,
+            border: pw.Border.all(color: PdfColors.blue900, width: 2),
+            borderRadius: pw.BorderRadius.circular(14),
+          ),
+          child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+            pw.Text(widget.school, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+            pw.Text('STUDENT IDENTITY CARD', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+            pw.SizedBox(height: 12),
+            if (photo != null) pw.Container(width: 82, height: 92, child: pw.Image(photo, fit: pw.BoxFit.cover)),
+            pw.SizedBox(height: 8),
+            pw.Text('${s['name']}', style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Father: ${s['father'] ?? ''}'),
+            pw.Text('Roll No: ${s['roll'] ?? ''}     Class: ${s['class'] ?? ''}'),
+            pw.Text('DOB: ${s['dob'] ?? ''}     Contact: ${s['phone'] ?? ''}'),
+            pw.SizedBox(height: 14),
+            pw.Text('Admission: ${s['admissionDate'] ?? ''}'),
+            pw.SizedBox(height: 14),
+            pw.Text('Principal Signature: __________________'),
+          ]),
+        ))));
+      } else if (kind == 'FEE SLIP') {
+        final monthly = feeOf(s);
+        final paid = paidOf(s);
+        final due = (monthly - paid).clamp(0, double.infinity).toDouble();
+        final payments = widget.fees.where((f) =>
+          '${f['studentId']}' == '${s['id']}' && '${f['month']}' == monthKey).toList();
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a5, margin: const pw.EdgeInsets.all(22), build: (_) => pw.Container(
+          padding: const pw.EdgeInsets.all(16),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+            pw.Center(child: pw.Text('MONTHLY FEE VOUCHER', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+            pw.Divider(thickness: 2),
+            pw.Text('Voucher No: ${s['id']}-$monthKey'),
+            pw.Text('Issue Date: ${DateTime.now().toString().substring(0,10)}'),
+            pw.Text('Fee Month: $monthKey'),
+            pw.SizedBox(height: 12),
+            pw.Text('Student: ${s['name']}'),
+            pw.Text('Father: ${s['father'] ?? ''}'),
+            pw.Text('Class: ${s['class']}    Roll: ${s['roll']}'),
+            pw.SizedBox(height: 14),
+            pw.Table.fromTextArray(headers: ['Fee Description', 'Amount (Rs.)'], data: [
+              ['Monthly Tuition Fee', monthly.toStringAsFixed(0)],
+              ['Received', paid.toStringAsFixed(0)],
+              ['Balance Due', due.toStringAsFixed(0)],
+            ]),
+            pw.SizedBox(height: 12),
+            pw.Text('Payments:'),
+            ...payments.map((p) => pw.Text('${p['date']}  Rs ${p['amount']}')),
+            pw.Spacer(),
+            pw.Text('Cashier Signature: __________________'),
+            pw.SizedBox(height: 12),
+            pw.Text('Parent Signature: __________________'),
+            pw.SizedBox(height: 10),
+            pw.Center(child: pw.Text('Please submit fee before the due date.', style: const pw.TextStyle(fontSize: 9))),
+          ]),
+        )));
+      } else if (kind == 'DMC') {
+        final rows = widget.marks.where((m) =>
+          '${m['studentId']}' == '${s['id']}' &&
+          (selectedExam == 'All Exams' || '${m['exam']}' == selectedExam)).toList();
+        final total = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['total']}') ?? 0));
+        final obtained = rows.fold<double>(0, (a, m) => a + (double.tryParse('${m['obtained']}') ?? 0));
+        final percent = total > 0 ? obtained / total * 100 : 0.0;
+        final grade = percent >= 90 ? 'A+' : percent >= 80 ? 'A' : percent >= 70 ? 'B' : percent >= 60 ? 'C' : percent >= 50 ? 'D' : 'Needs Improvement';
+        doc.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(28), build: (_) => pw.Container(
+          padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.blue900, width: 2)),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+            pw.Center(child: pw.Text(widget.school, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900))),
+            pw.Center(child: pw.Text('DETAILED MARKS CERTIFICATE', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold))),
+            pw.Divider(thickness: 2),
             pw.Text('Student Name: ${s['name']}'),
             pw.Text('Father Name: ${s['father'] ?? ''}'),
             pw.Text('Class: ${s['class']}    Roll No: ${s['roll']}'),
