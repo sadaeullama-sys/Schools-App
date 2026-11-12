@@ -3661,7 +3661,7 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
         TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Set Password')),
         const Divider(height:24),
         const Align(alignment:Alignment.centerLeft, child: Text('Staff Permissions', style:TextStyle(fontWeight:FontWeight.bold))),
-        ...permissionLabels.entries.map((e)=>CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,title:Text(e.value),value:selected.contains(e.key),onChanged:(v)=>refresh(()=>v==true?selected.add(e.key):selected.remove(e.key))),
+        ...permissionLabels.entries.map((e)=>CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,title:Text(e.value),value:selected.contains(e.key),onChanged:(v)=>refresh(()=>v==true?selected.add(e.key):selected.remove(e.key)))),
       ])),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx,false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx,true), child: const Text('Save'))],
     )));
