@@ -50,11 +50,16 @@ jobs:
 
       # The repository's old widget test referenced a non-existent MyApp class.
       # Skip flutter test until proper app startup tests are authored for this app.
-      - name: Build release APK
-        run: flutter build apk --release
+      # Android Lint crashes inside image_picker_android's ExifDataCopier.java
+      # on this toolchain (NoSuchMethodError in JavaDocParser). Skip only the
+      # crashing lintVital task; Gradle still compiles and packages the app.
+      - name: Build release APK (skip crashing Android lint task)
+        working-directory: android
+        run: ./gradlew assembleRelease -x lintVitalAnalyzeRelease
 
-      - name: Build Play Store AAB
-        run: flutter build appbundle --release
+      - name: Build Play Store AAB (skip crashing Android lint task)
+        working-directory: android
+        run: ./gradlew bundleRelease -x lintVitalAnalyzeRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
