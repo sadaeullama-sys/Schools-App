@@ -30,11 +30,11 @@ Future<void> main() async {
   runApp(const SchoolManagementApp());
 }
 
-const Color navy = Color(0xFF092B50);
-const Color blue = Color(0xFF1769AA);
-const Color lightBlue = Color(0xFFEAF3FC);
+const Color navy = Color(0xFF202A30);
+const Color blue = Color(0xFF167A68);
+const Color lightBlue = Color(0xFFEAF3F0);
 const Color gold = Color(0xFFD6A947);
-const Color background = Color(0xFFF3F6FA);
+const Color background = Color(0xFFF4F5F3);
 
 const String adminUsername = 'Muhammad Ilyas';
 
@@ -249,7 +249,7 @@ class _LicensePageState extends State<LicensePage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [navy, blue, Color(0xFF397FC0)],
+            colors: [navy, blue, Color(0xFF2B9A80)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -466,7 +466,7 @@ class PortalHomePage extends StatelessWidget {
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF061D39), Color(0xFF0D4D86), Color(0xFF1681C5)],
+            colors: [Color(0xFF17232B), Color(0xFF176B5C), Color(0xFF23977D)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -864,7 +864,7 @@ class _LoginPageState extends State<LoginPage> {
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF061D39), Color(0xFF0D4D86), Color(0xFF1681C5)],
+            colors: [Color(0xFF17232B), Color(0xFF176B5C), Color(0xFF23977D)],
             begin: Alignment.topCenter, end: Alignment.bottomCenter,
           ),
         ),
@@ -1595,8 +1595,8 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFF0B2E59),
-                  Color(0xFF2875B8),
+                  Color(0xFF25343A),
+                  Color(0xFF23977D),
                 ],
               ),
               borderRadius: BorderRadius.circular(18),
@@ -1608,7 +1608,7 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: Colors.white,
                   child: Icon(
                     Icons.school,
-                    color: Color(0xFF123B70),
+                    color: Color(0xFF176B5C),
                     size: 32,
                   ),
                 ),
@@ -1779,7 +1779,7 @@ class _HomePageState extends State<HomePage> {
             child: ListTile(
               leading: const Icon(
                 Icons.account_tree,
-                color: Color(0xFF123B70),
+                color: Color(0xFF176B5C),
               ),
               title: const Text(
                 'Organization Workflow',
@@ -1987,7 +1987,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Color(0xFF123B70),
+                color: Color(0xFF176B5C),
               ),
               child: Align(
                 alignment: Alignment.bottomLeft,
@@ -2715,7 +2715,7 @@ class _FeesModuleState extends State<FeesModule> {
         ]),
       ),
     ));
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3422,7 +3422,7 @@ class _ClassDocumentsModuleState extends State<ClassDocumentsModule> {
         ]))));
       }
     }
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3510,7 +3510,7 @@ class StudentIDCard extends StatelessWidget {
         pw.Text('Class: ${student['class'] ?? ''}'), pw.Text('Phone: ${student['phone'] ?? ''}'),
       ]),
     ))));
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
@@ -3545,7 +3545,7 @@ class ReportsModule extends StatelessWidget {
       pw.SizedBox(height: 15),
       pw.Table.fromTextArray(headers: ['Student', 'Class', 'Roll'], data: students.map((s) => ['${s['name']}', '${s['class']}', '${s['roll']}']).toList()),
     ]));
-    await Printing.sharePdf(bytes: await doc.save(), filename: 'school_document.pdf');
+    await Printing.layoutPdf(onLayout: (_) async => doc.save());
   }
 
   @override
