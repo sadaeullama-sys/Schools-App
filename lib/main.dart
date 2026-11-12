@@ -2083,9 +2083,9 @@ class RolePortalPage extends StatelessWidget {
     final user = TextEditingController();
     final pass = TextEditingController();
     return Scaffold(appBar: AppBar(title: Text('$role Login')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(role == 'Parent' ? Icons.family_restroom : role == 'Staff' ? Icons.badge : Icons.admin_panel_settings, size: 54, color: navy),
+      Icon(role == 'Parent' ? Icons.family_restroom : Icons.badge, size: 54, color: navy),
       const SizedBox(height: 12), Text('$role Portal', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 18), TextField(controller: user, decoration: const InputDecoration(labelText: 'Username / Student ID')),
+      const SizedBox(height: 18), TextField(controller: user, decoration: const InputDecoration(labelText: 'Username / ID')),
       const SizedBox(height: 12), TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
       const SizedBox(height: 16), FilledButton(onPressed: () async {
         final prefs = await SharedPreferences.getInstance();
@@ -2095,20 +2095,63 @@ class RolePortalPage extends StatelessWidget {
         if (!context.mounted) return;
         if (account.isEmpty || (role == 'Parent' && account.first['approved'] != true)) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(account.isEmpty ? 'Invalid ID or password.' : 'Parent account is not approved yet.')));
+          return;
+        }
+        final a = account.first;
+        if (role == 'Staff') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => StaffAccessHome(account: a)));
         } else {
-          final a = account.first;
-          String detail = 'Welcome ${a['name'] ?? role}';
-          if (role == 'Parent') {
-            final students = (jsonDecode(prefs.getString('academy_students') ?? '[]') as List).map((e) => Map<String,dynamic>.from(e as Map)).toList();
-            final child = students.where((e) => '${e['id']}' == '${a['studentId']}').toList();
-            detail += child.isEmpty ? '' : '\nStudent: ${child.first['name']} • Class ${child.first['class']}';
-          }
-          showDialog<void>(context: context, builder: (ctx) => AlertDialog(title: Text('$role Login Successful'), content: Text(detail), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))]));
+          final students = (jsonDecode(prefs.getString('academy_students') ?? '[]') as List).map((e) => Map<String,dynamic>.from(e as Map)).toList();
+          final child = students.where((e) => '${e['id']}' == '${a['studentId']}').toList();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ParentAccessHome(account: a, child: child.isEmpty ? null : child.first)));
         }
       }, child: const Text('Login')),
       const SizedBox(height: 8), const Text('Use the ID and password created by the school administrator.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12)),
     ]))))));
   }
+}
+
+class StaffAccessHome extends StatelessWidget {
+  final Map<String,dynamic> account;
+  const StaffAccessHome({super.key, required this.account});
+  static const modules = <String,String>{
+    'students':'Student Records','attendance':'Attendance','fees':'Fee Collection',
+    'exams':'Exams & Results','stock':'Stock Management','notices':'School Notices',
+    'reports':'Reports','syllabus':'Syllabus & Date Sheet'
+  };
+  @override
+  Widget build(BuildContext context) {
+    final raw = account['permissions'];
+    final allowed = raw is List ? raw.map((e)=>'$e').toSet() : <String>{};
+    final visible = modules.entries.where((e)=>allowed.contains(e.key)).toList();
+    return Scaffold(appBar: AppBar(title: Text('Staff • ${account['name'] ?? ''}')), body: ListView(padding: const EdgeInsets.all(16), children: [
+      Card(child: ListTile(leading: const Icon(Icons.badge), title: Text('${account['name'] ?? 'Staff'}'), subtitle: Text('Staff ID: ${account['id'] ?? ''}'))),
+      const Padding(padding: EdgeInsets.symmetric(vertical:12), child: Text('Your Authorized Modules', style: TextStyle(fontWeight: FontWeight.bold, fontSize:18))),
+      if (visible.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Principal has not assigned any permissions yet. Please contact the Principal.'))),
+      ...visible.map((e)=>Card(child: ListTile(leading: const Icon(Icons.verified_user, color: Colors.green), title: Text(e.value), subtitle: const Text('Access granted by Principal')))),
+      const SizedBox(height:8), const Text('You can only access the modules assigned to your Staff ID.')
+    ]));
+  }
+}
+
+class ParentAccessHome extends StatelessWidget {
+  final Map<String,dynamic> account;
+  final Map<String,dynamic>? child;
+  const ParentAccessHome({super.key, required this.account, required this.child});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('Parent • ${account['name'] ?? ''}')),
+    body: ListView(padding: const EdgeInsets.all(16), children: [
+      Card(child: ListTile(leading: const Icon(Icons.family_restroom), title: Text('${account['name'] ?? 'Parent'}'), subtitle: Text('Parent ID: ${account['id'] ?? ''}'))),
+      if (child == null) const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Linked student record was not found. Please contact the school.'))),
+      if (child != null) ...[
+        const Text('Your Child Information', style: TextStyle(fontSize:18, fontWeight:FontWeight.bold)),
+        Card(child: ListTile(leading: const Icon(Icons.school), title: Text('${child!['name'] ?? ''}'), subtitle: Text('Class: ${child!['class'] ?? ''} • Roll: ${child!['roll'] ?? ''}'))),
+        Card(child: ListTile(leading: const Icon(Icons.person), title: Text('Father / Guardian: ${child!['father'] ?? child!['guardian'] ?? ''}'), subtitle: Text('Admission No: ${child!['roll'] ?? ''}'))),
+        const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('This Parent account is restricted to the linked child. Fee, attendance and result records will appear here when connected to the school records.'))),
+      ]
+    ])
+  );
 }
 
 class SchoolNoticeModule extends StatefulWidget {
@@ -3603,18 +3646,27 @@ class _StaffManagementPageState extends State<StaffManagementPage> {
     final phone = TextEditingController(text: '${old['phone'] ?? ''}');
     final designation = TextEditingController(text: '${old['designation'] ?? ''}');
     final password = TextEditingController(text: '${old['password'] ?? ''}');
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+    final permissionLabels = <String,String>{
+      'students':'Student Records','attendance':'Attendance','fees':'Fee Collection',
+      'exams':'Exams & Results','stock':'Stock Management','notices':'School Notices',
+      'reports':'Reports','syllabus':'Syllabus & Date Sheet'
+    };
+    final selected = <String>{...((old['permissions'] is List) ? (old['permissions'] as List).map((e)=>'$e') : <String>[])};
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder:(ctx, refresh)=>AlertDialog(
       title: Text(index == null ? 'Create Staff Account' : 'Edit Staff Account'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: name, decoration: const InputDecoration(labelText: 'Staff Name')),
         TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile Number')),
         TextField(controller: designation, decoration: const InputDecoration(labelText: 'Designation')),
-        TextField(controller: password, decoration: const InputDecoration(labelText: 'Set Password')),
+        TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Set Password')),
+        const Divider(height:24),
+        const Align(alignment:Alignment.centerLeft, child: Text('Staff Permissions', style:TextStyle(fontWeight:FontWeight.bold))),
+        ...permissionLabels.entries.map((e)=>CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,title:Text(e.value),value:selected.contains(e.key),onChanged:(v)=>refresh(()=>v==true?selected.add(e.key):selected.remove(e.key))),
       ])),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx,false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx,true), child: const Text('Save'))],
-    ));
+    )));
     if (ok == true && name.text.trim().isNotEmpty && password.text.isNotEmpty) {
-      final rec = <String,dynamic>{'id': old['id'] ?? 'STF${DateTime.now().millisecondsSinceEpoch}', 'name': name.text.trim(), 'phone': phone.text.trim(), 'designation': designation.text.trim(), 'password': password.text};
+      final rec = <String,dynamic>{'id': old['id'] ?? 'STF${DateTime.now().millisecondsSinceEpoch}', 'name': name.text.trim(), 'phone': phone.text.trim(), 'designation': designation.text.trim(), 'password': password.text, 'permissions': selected.toList()};
       setState(() { if (index == null) { records.add(rec); } else { records[index] = rec; } }); widget.onSave(records);
     }
     name.dispose(); phone.dispose(); designation.dispose(); password.dispose();
